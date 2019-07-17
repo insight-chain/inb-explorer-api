@@ -1,8 +1,8 @@
-##INB EXPLORER
+## INB EXPLORER
 
 An highly efficient block chain explorer of inb chain
 
-##BUILDING
+## BUILDING
 
 1. clone project into your computer, then open with IntelliJ IDEA or other IDEA.
 
@@ -16,7 +16,7 @@ mvn clean
 ```shell
 mvn install
 ```
-##RUNNING
+## RUNNING
 
 1. to run the syn-server, you just need to run the SynServer in the module of syn-server
 

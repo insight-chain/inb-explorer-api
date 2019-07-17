@@ -5,9 +5,9 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.inbscan.constants.InbConstants;
+import io.inbscan.model.tables.records.BlockChainRecord;
 import io.inbscan.service.TransactionService;
 import io.inbscan.dto.JsonParam;
-import io.inbscan.model.tables.records.BlockChainRecord;
 import io.inbscan.utils.HttpUtil;
 import org.jooq.DSLContext;
 import org.slf4j.Logger;
@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.inbscan.model.tables.BlockChain.BLOCK_CHAIN;
+
 
 @Singleton
 public class InbChainService {
