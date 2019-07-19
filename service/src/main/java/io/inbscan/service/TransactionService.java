@@ -65,8 +65,7 @@ public class TransactionService {
 
 	private static String fromAddress = "0xdd19ce1c57f102b902809aa47619336f692410dd";
 	private static BigDecimal defaultGasPrice = BigDecimal.valueOf(5);
-	private static final String URL = "http://1.119.153.110:6002/";
-//	private static final String URL = "http://192.168.1.182:6002/";
+	private static final String URL = "http://192.168.1.1:8080/";
 
 //	public static void main(String[] args) {
 //		web3j = Web3j.build(new HttpService(URL));
