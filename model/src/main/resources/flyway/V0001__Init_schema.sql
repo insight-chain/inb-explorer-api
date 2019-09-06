@@ -247,4 +247,46 @@ CREATE TABLE `transfer` (
   CONSTRAINT `fk_transfer_tx_id` FOREIGN KEY (`transaction_id`) REFERENCES `transaction` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
+--
+-- Table structure for table `transaction_inline`
+--
+DROP TABLE IF EXISTS `transaction_log`;
+CREATE TABLE `transaction_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `block_hash` varchar(200) DEFAULT NULL,
+  `address` varchar(200) DEFAULT NULL,
+  `inline_transaction_hash` varchar(200) DEFAULT NULL,
+  `transaction_hash` varchar(200) DEFAULT NULL,
+  `transaction_type` int(2) DEFAULT NULL,
+  `transaction_index` int(2) DEFAULT NULL,
+  `removed` int(2) DEFAULT NULL,
+  `from` varchar(200) DEFAULT NULL,
+  `to` varchar(200) DEFAULT NULL,
+  `amount` bigint(20) unsigned DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `inline_from_index` (`from`),
+  KEY `inline_to_index` (`to`),
+  KEY `inline_timestamp_index` (`timestamp`),
+  KEY `fk_transfer_tx_hash_idx` (`transaction_hash`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+
+--
+-- Table structure for table `store`
+--
+DROP TABLE IF EXISTS `store`;
+CREATE TABLE `transaction_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `address` varchar(200) DEFAULT NULL,
+  `start_time` datetime DEFAULT NULL,
+  `last_received_time` datetime DEFAULT NULL,
+  `days` int(2) DEFAULT NULL,
+  `nonce` int(2) DEFAULT NULL,
+  `received` bigint(20) DEFAULT NULL,
+  `amount` bigint(20) unsigned DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `store_address_index` (`address`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
