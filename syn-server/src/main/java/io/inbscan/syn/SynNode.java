@@ -1,6 +1,9 @@
 package io.inbscan.syn;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.inject.Inject;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import com.maxmind.geoip2.DatabaseReader;
@@ -8,6 +11,7 @@ import com.maxmind.geoip2.model.CityResponse;
 import io.inbscan.SynServerConfig;
 import io.inbscan.chain.InbChainService;
 import io.inbscan.dto.node.NodeDTO;
+import io.inbscan.dto.node.NodeInfo;
 import io.inbscan.model.tables.pojos.Node;
 import io.inbscan.model.tables.records.NodeRecord;
 import org.jooq.DSLContext;
@@ -49,43 +53,57 @@ public class SynNode {
 
     public void syncNodes() throws InterruptedException {
 
-        List<NodeDTO> list = JSON.parseArray(inbChainService.getCandidateNodesInfo().getString("result"), NodeDTO.class);
-//        this.dslContext.deleteFrom(NODE).execute();
-
-        if(list.size() != 0) {
-
-            for (NodeDTO nodeDto : list) {
-
-                logger.info("syn node start" + nodeDto.getAddress());
-                this.dslContext.insertInto(NODE)
-                        .set(NODE.HOST, nodeDto.getIp())
-                        .set(NODE.PORT, nodeDto.getPort())
-                        .set(NODE.DATE_CREATED, Timestamp.valueOf(LocalDateTime.now()))
-                        .set(NODE.COUNTRY, nodeDto.getNation())
-                        .set(NODE.IMAGE, nodeDto.getImage())
-                        .set(NODE.WEB_SITE, nodeDto.getWebsite())
-                        .set(NODE.ADDRESS, nodeDto.getAddress())
-                        .set(NODE.CITY, nodeDto.getCity())
-                        .set(NODE.NAME, nodeDto.getName())
-                        .set(NODE.NODE_ID, nodeDto.getId())
-                        .set(NODE.VOTE_NUMBER, ULong.valueOf(nodeDto.getVote()))
-                        .set(NODE.EMAIL, nodeDto.getEmail())
-                        .set(NODE.TYPE, 2)
-                        .execute();
-
-
-            }
-
-            List<NodeDTO> listSuperNode = JSON.parseArray(inbChainService.getSuperNodesInfo().getString("result"), NodeDTO.class);
-            for (NodeDTO superNode : listSuperNode) {
-                Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(superNode.getId())).fetchOneInto(Node.class);
-                if (node != null) {
-                    this.dslContext.update(NODE)
-                            .set(NODE.TYPE, 1)
-                            .where(NODE.ID.eq(node.getId()))
+        JSONArray jsonArray = inbChainService.getCandidateNodesInfo().getJSONArray("result");
+        if(jsonArray != null & jsonArray.size() != 0) {
+            for (int i = 0; i < jsonArray.size(); i++) {
+                JSONObject nodeObj = JSONArray.parseObject(jsonArray.get(i).toString());
+                JSONObject nodeInfoObj = nodeObj.getJSONObject("NodeInfo");
+                Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(nodeInfoObj.getString("id"))).fetchOneInto(Node.class);
+                if(node==null) {
+                    logger.info("syn node start" + nodeObj.getString("Address"));
+                    this.dslContext.insertInto(NODE)
+                            .set(NODE.HOST, nodeInfoObj.getString("ip"))
+                            .set(NODE.PORT, Integer.valueOf(nodeInfoObj.getString("port")))
+                            .set(NODE.DATE_CREATED, Timestamp.valueOf(LocalDateTime.now()))
+                            .set(NODE.COUNTRY, nodeInfoObj.getString("nation"))
+                            .set(NODE.IMAGE, nodeInfoObj.getString("image"))
+                            .set(NODE.WEB_SITE, nodeInfoObj.getString("website"))
+                            .set(NODE.ADDRESS, nodeInfoObj.getString("address"))
+                            .set(NODE.CITY, nodeInfoObj.getString("city"))
+                            .set(NODE.NAME, nodeInfoObj.getString("name"))
+                            .set(NODE.NODE_ID, nodeInfoObj.getString("id"))
+                            .set(NODE.VOTE_NUMBER, ULong.valueOf(nodeObj.getInteger("Stake")))
+                            .set(NODE.EMAIL, nodeInfoObj.getString("email"))
+                            .set(NODE.TYPE, 2)
                             .execute();
                 }
             }
+
+            JSONArray json = inbChainService.getSuperNodesInfo().getJSONArray("result");
+            if(json.size()!=0){
+                for (int i = 0; i < json.size(); i++) {
+                    JSONObject superNodeObj = JSONArray.parseObject(jsonArray.get(i).toString());
+                    JSONObject superNodeInfoObj = superNodeObj.getJSONObject("NodeInfo");
+                    Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(superNodeInfoObj.getString("id"))).fetchOneInto(Node.class);
+                    if(node!=null){
+                        this.dslContext.update(NODE)
+                            .set(NODE.TYPE, 1)
+                            .where(NODE.ID.eq(node.getId()))
+                            .execute();
+                    }
+                }
+
+            }
+
+//            for (NodeDTO superNode : listSuperNode) {
+//                Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(superNode.getId())).fetchOneInto(Node.class);
+//                if (node != null) {
+//                    this.dslContext.update(NODE)
+//                            .set(NODE.TYPE, 1)
+//                            .where(NODE.ID.eq(node.getId()))
+//                            .execute();
+//
+//            }
         }
 
 //		for(String ip:config.getSeedNodes()) {
