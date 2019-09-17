@@ -4,19 +4,21 @@ package io.inbscan.service;
 import com.alibaba.fastjson.JSONObject;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.inbscan.chain.InbChainService;
 import io.inbscan.constants.InbConstants;
-import io.inbscan.dto.*;
+import io.inbscan.dto.JsonParam;
+import io.inbscan.dto.ListModel;
 import io.inbscan.dto.transaction.TransactionCriteria;
 import io.inbscan.dto.transaction.TransactionDTO;
 import io.inbscan.dto.transaction.TransactionModel;
 import io.inbscan.dto.transaction.TransferModel;
-import io.inbscan.model.tables.records.AccountRecord;
-import io.inbscan.model.tables.records.BlockChainRecord;
-import io.inbscan.model.tables.records.BlockRecord;
-import io.inbscan.model.tables.records.TransactionRecord;
+import io.inbscan.model.tables.pojos.TransactionLog;
+import io.inbscan.model.tables.records.*;
 import io.inbscan.utils.HttpUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.jooq.*;
+import org.jooq.Condition;
+import org.jooq.DSLContext;
+import org.jooq.SelectOnConditionStep;
 import org.jooq.impl.DSL;
 import org.jooq.types.ULong;
 import org.slf4j.Logger;
@@ -48,6 +50,7 @@ import static io.inbscan.model.tables.Block.BLOCK;
 import static io.inbscan.model.tables.BlockChain.BLOCK_CHAIN;
 import static io.inbscan.model.tables.SyncAccount.SYNC_ACCOUNT;
 import static io.inbscan.model.tables.Transaction.TRANSACTION;
+import static io.inbscan.model.tables.TransactionLog.TRANSACTION_LOG;
 import static io.inbscan.model.tables.Transfer.TRANSFER;
 
 @Singleton
@@ -56,6 +59,7 @@ public class TransactionService {
 	private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
 	private DSLContext dslContext;
+	private InbChainService inbChainService;
 	
 	private final int TRON_START_YEAR = 2018;
 
@@ -77,8 +81,10 @@ public class TransactionService {
 
 	
 	@Inject
-	public TransactionService(DSLContext dslContext) {
+	public TransactionService(DSLContext dslContext, InbChainService inbChainService) {
+
 		this.dslContext  = dslContext;
+		this.inbChainService = inbChainService;
 	}
 	
 
@@ -93,17 +99,30 @@ public class TransactionService {
 		.fetchOneInto(TransactionModel.class);
 
 		if(result != null) {
+			double divideNumber = Math.pow(10,18);
+			List<TransactionLog> record = this.dslContext.select()
+					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(result.getHash())).fetchInto(TransactionLog.class);
+			result.setLog(record);
+
+			for (TransactionLog transactionLog : record) {
+				BigDecimal amount = new BigDecimal(transactionLog.getAmount().doubleValue()/divideNumber);
+				transactionLog.setAmount(amount.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue());
+			}
+
 			TransferModel transfer = this.dslContext.select(TRANSFER.TO,TRANSFER.AMOUNT)
 					.from(TRANSFER).where(TRANSFER.TRANSACTION_ID.eq(ULong.valueOf(result.getId()))).fetchOneInto(TransferModel.class);
 			result.setTo(transfer.getTo());
-			result.setTimestamp(result.getTimestamp().substring(0,result.getTimestamp().indexOf(".")));
+//			result.setTimestamp(result.getTimestamp().substring(0,result.getTimestamp().indexOf(".")));
 			result.setAmount(transfer.getAmount()/Math.pow(10,18));
 		}
+
+
 //;
 
 
 		if (result==null) {
 			TransactionModel transactionModel = new TransactionModel();
+
 			List<Object> params = new ArrayList<>();
 			params.add(hash);
 			JsonParam jsonParam = new JsonParam();
@@ -113,10 +132,14 @@ public class TransactionService {
 			jsonParam.setId(67L);
 			String param = JSONObject.toJSONString(jsonParam);
 			String transaction = HttpUtil.doPost(InbConstants.URL, param);
+
 			String bandwith = "0";
 			String status = "0";
 
 			JSONObject object = (JSONObject)JSONObject.parse(transaction);
+			if(object.getJSONObject("error").size() != 0){
+				return new TransactionModel();
+			}
 			bandwith = object.getJSONObject("result").get("cumulativeNetUsed").toString();
 			status = object.getJSONObject("result").get("status").toString();
 			String from = object.getJSONObject("result").getString("from");
@@ -160,7 +183,7 @@ public class TransactionService {
 
 			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			transactionModel.setHash(hash);
-			transactionModel.setTimestamp(simpleDateFormat.format(new Date(Long.valueOf(Numeric.decodeQuantity(timestamp).toString()+"000"))));
+			transactionModel.setTimestamp(Long.valueOf(timestamp));
 			transactionModel.setBindwith(bandwith);
 			transactionModel.setAmount(amountResult.doubleValue());
 			transactionModel.setBlock(Long.valueOf(Numeric.decodeQuantity(blockNumber).toString()));
@@ -252,13 +275,15 @@ public class TransactionService {
 		List<TransactionModel> items = listQuery.where(conditions).orderBy(TRANSACTION.TIMESTAMP.desc()).limit(criteria.getLimit()).offset(criteria.getOffSet()).fetchInto(TransactionModel.class);
 		List<TransactionModel> item = new ArrayList<>();
 		for(TransactionModel transactionModel:items){
-			double amount = transactionModel.getAmount();
 			double divideNumber = Math.pow(10,18);
+			double amount = transactionModel.getAmount();
 			BigDecimal b = new BigDecimal(amount/divideNumber);
 			double result = b.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue();
 			transactionModel.setAmount(result);
+//			transactionModel.setTimestamp(transactionModel.getTimestamp().substring(0,transactionModel.getTimestamp().indexOf(".")));
 
-			transactionModel.setTimestamp(transactionModel.getTimestamp().substring(0,transactionModel.getTimestamp().indexOf(".")));
+
+
 //			if(transactionModel.getBindwith().contains("0x")) {
 //				transactionModel.setBindwith(fromHexString(transactionModel.getBindwith()));
 //			}
@@ -280,6 +305,9 @@ public class TransactionService {
 
 		if (criteria.getAddress()!=null) {
 			conditions.add(TRANSACTION.ID.in(DSL.select(TRANSFER.TRANSACTION_ID).from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress()))));
+		}
+		if(criteria.getType()!=null && criteria.getType().equals("award")) {
+			conditions.add(TRANSACTION.TYPE.eq(8).or(TRANSACTION.TYPE.eq(9)));
 		}
 
 		SelectOnConditionStep<?> listQuery = (SelectOnConditionStep<?>) this.dslContext.select(BLOCK.NUM.as("blockNumber"),BLOCK.HASH.as("blockHash"),TRANSACTION.ID,TRANSACTION.INPUT,TRANSACTION.HASH,TRANSACTION.TIMESTAMP,TRANSACTION.FROM,TRANSFER.TO,TRANSFER.AMOUNT,TRANSACTION.TYPE,TRANSACTION.CONFIRMED,TRANSACTION.BINDWITH,TRANSACTION.STATUS)
@@ -312,7 +340,7 @@ public class TransactionService {
 			double result = b.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue();
 			transactionDTO.setAmount(result);
 
-			transactionDTO.setTimestamp(transactionDTO.getTimestamp().substring(0,transactionDTO.getTimestamp().indexOf(".")));
+//			transactionDTO.setTimestamp(transactionDTO.getTimestamp().substring(0,transactionDTO.getTimestamp().indexOf(".")));
 
 			//交易类型状态交易方向
 			if(transactionDTO.getFrom().equals(criteria.getAddress())){
@@ -488,33 +516,26 @@ public class TransactionService {
 
 
 
-	public void saveTransaction(EthBlock.TransactionObject transaction, BlockRecord block) {
+	public void saveTransaction(JSONObject transaction, BlockRecord block) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-		logger.info("trans is: " + transaction.getHash());
+		String transHash = transaction.getString("hash");
+		String transFrom = transaction.getString("from");
+		String transTo = transaction.getString("to");
+		logger.info("trans is: " + transHash );
 
 		//交易状态以及交易消耗资源
-
-		List<Object> params = new ArrayList<>();
-		params.add(transaction.getHash());
-		JsonParam inbJsonParam = new JsonParam();
-		inbJsonParam.setJsonrpc("2.0");
-		inbJsonParam.setMethod("eth_getTransactionReceipt");
-		inbJsonParam.setParams(params);
-		inbJsonParam.setId(67L);
-		String param = JSONObject.toJSONString(inbJsonParam);
-		String result = HttpUtil.doPost(InbConstants.URL, param);
+		JSONObject transReceipt = inbChainService.getTransactionReceipt(transHash);
 		String bandwith = "0";
 		String status = "0";
-		if (StringUtils.isNotBlank(result)) {
-			JSONObject object = (JSONObject) JSONObject.parse(result);
-			bandwith = object.getJSONObject("result").get("cumulativeNetUsed").toString();
-			status = object.getJSONObject("result").get("status").toString();
+		if (transReceipt!=null) {
+			bandwith = transReceipt.getJSONObject("result").getString("cumulativeResUsed");
+			status = transReceipt.getJSONObject("result").getString("status");
 		}
 
 		String transInput = null;
 		int transType = 1;
 		try {
-			transInput = fromHexString(transaction.getInput());
+			transInput = fromHexString(transaction.getString("input"));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -529,9 +550,9 @@ public class TransactionService {
 		}
 
 		TransactionRecord txRecord = this.dslContext.insertInto(TRANSACTION)
-				.set(TRANSACTION.HASH, transaction.getHash())
+				.set(TRANSACTION.HASH, transHash)
 				.set(TRANSACTION.TIMESTAMP, block.getTimestamp())
-				.set(TRANSACTION.FROM, transaction.getFrom())
+				.set(TRANSACTION.FROM, transaction.getString("from"))
 				.set(TRANSACTION.BINDWITH, bandwith)
 				.set(TRANSACTION.TYPE, transType)
 				.set(TRANSACTION.INPUT, transInput)
@@ -540,15 +561,18 @@ public class TransactionService {
 				.fetchOne();
 
 		this.dslContext.insertInto(TRANSFER)
-				.set(TRANSFER.FROM, transaction.getFrom())
-				.set(TRANSFER.TO, transaction.getTo())
-				.set(TRANSFER.AMOUNT, ULong.valueOf(transaction.getValue().longValue()))
+				.set(TRANSFER.FROM, transFrom)
+				.set(TRANSFER.TO, transTo)
+				.set(TRANSFER.AMOUNT, ULong.valueOf(Numeric.decodeQuantity(transaction.getString("value")).longValue()))
 				.set(TRANSFER.TRANSACTION_ID, txRecord.getId())
 				.set(TRANSFER.TIMESTAMP, Timestamp.valueOf(format.format(System.currentTimeMillis())))
 				.execute();
 
-		synAccount(transaction.getFrom());
-		synAccount(transaction.getTo());
+		synAccount(transFrom);
+		if(transTo != null){
+			synAccount(transTo);
+		}
+
 
 		//当前消耗net
 		BigInteger currentNetConsume = Numeric.decodeQuantity(bandwith);
@@ -565,6 +589,24 @@ public class TransactionService {
 				.set(BLOCK_CHAIN.NET_LIMIT,netLimit)
 				.where(BLOCK_CHAIN.ID.eq(blockChainRecord.getId()))
 				.execute();
+
+
+		//增加transLog
+		List<JSONObject> logObject = inbChainService.getTransLog(transHash);
+		for (int i = 0; i < logObject.size(); i++) {
+			this.dslContext.insertInto(TRANSACTION_LOG)
+					.set(TRANSACTION_LOG.INLINE_TRANSACTION_HASH,transHash)
+					.set(TRANSACTION_LOG.ADDRESS,logObject.get(i).get("address").toString())
+					.set(TRANSACTION_LOG.BLOCK_HASH,logObject.get(i).get("blockHash").toString())
+					.set(TRANSACTION_LOG.TRANSACTION_HASH,logObject.get(i).get("transactionHash").toString())
+					.set(TRANSACTION_LOG.TRANSACTION_TYPE,logObject.get(i).getInteger("txType"))
+					.set(TRANSACTION_LOG.TRANSACTION_INDEX, Numeric.decodeQuantity(logObject.get(i).get("transactionIndex").toString()).intValue())
+					.set(TRANSACTION_LOG.FROM,logObject.get(i).get("from").toString())
+					.set(TRANSACTION_LOG.TO,logObject.get(i).get("to").toString())
+					.set(TRANSACTION_LOG.AMOUNT,logObject.get(i).getLong("value").doubleValue())
+					.execute();
+		}
+
 	}
 	public void synAccount(String address){
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");

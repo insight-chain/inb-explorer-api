@@ -1,5 +1,6 @@
 package io.inbscan.service;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.inject.Inject;
 import io.inbscan.chain.InbChainService;
@@ -48,7 +49,7 @@ public class BlockService {
 	private DSLContext dslContext;
 	private TransactionService txService;
 	private InbChainService inbChainService;
-	
+
 	@Inject
 	public BlockService(DSLContext dslContext, TransactionService txService, InbChainService inbChainService) {
 		this.dslContext = dslContext;
@@ -63,47 +64,30 @@ public class BlockService {
 	 * @param
 	 * @throws ServiceException
 	 */
-	public void importInbBlock(EthBlock.Block block) throws ServiceException {
+	public void importInbBlock(JSONObject block) throws ServiceException {
 
-		long blockNum = block.getNumber().longValue();
+		long blockNum = Numeric.decodeQuantity(block.getJSONObject("result").getString("number")).longValue();
+		JSONArray transactions = block.getJSONObject("result").getJSONArray("transactions");
 
 //		try {
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		Date date = new Date(block.getTimestamp().longValue()*1000);
+		Date date = new Date(Numeric.decodeQuantity(block.getJSONObject("result").getString("timestamp")).longValue()*1000);
 
 		BlockRecord record = new BlockRecord();
-
-//			String parentHash = Sha256Hash.wrap(block.getBlockHeader().getRawData().getParentHash()).toString();
-
-		//Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray()).toString()
-
-		//获取block收益
-		List<Object> params = new ArrayList<>();
-		params.add("0x"+Integer.toHexString(block.getNumber().intValue()));
-		params.add(true);
-		JsonParam inbJsonParam = new JsonParam();
-		inbJsonParam.setJsonrpc("2.0");
-		inbJsonParam.setMethod("eth_getBlockByNumber");
-		inbJsonParam.setId(67L);
-		inbJsonParam.setParams(params);
-		String param = JSONObject.toJSONString(inbJsonParam);
-		String result = HttpUtil.doPost(InbConstants.URL, param);
-		JSONObject object = (JSONObject)JSONObject.parse(result);
 		BigInteger reward = new BigInteger("0");
-		if(object!=null) {
-			reward = new BigInteger(object.getJSONObject("result").get("reward").toString());
+		if(block!=null) {
+			reward = new BigInteger(block.getJSONObject("result").getString("reward"));
 		}
 
-		record.setTxCount(UInteger.valueOf(0));
-		record.setWitnessAddress(block.getAuthor());
-		record.setNum(ULong.valueOf(block.getNumber()));
+		record.setTxCount(UInteger.valueOf(transactions.size()));
+		record.setWitnessAddress(block.getJSONObject("result").getString("miner"));
+		record.setNum(ULong.valueOf(blockNum));
 //			record.setHash(Sha256Hash.wrap(Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray()).getBytes()).toString());
-		record.setHash(block.getHash());
+		record.setHash(block.getJSONObject("result").getString("hash"));
 //			record.setWitnessAddress(block.getAuthor());
-		record.setParentHash(block.getParentHash());
+		record.setParentHash(block.getJSONObject("result").getString("parentHash"));
 		record.setTimestamp(Timestamp.valueOf(simpleDateFormat.format(date)));
-		record.setSize(UInteger.valueOf(block.getSize().intValue()));
-		record.setTxCount(UInteger.valueOf(block.getTransactions().size()));
+		record.setSize(UInteger.valueOf(Numeric.decodeQuantity(block.getJSONObject("result").getString("size")).intValue()));
 		record.setReward(reward.doubleValue());
 
 
@@ -114,22 +98,26 @@ public class BlockService {
 		record.attach(this.dslContext.configuration());
 		record.store();
 
-		if (blockNum>0) {
-			this.dslContext.update(BLOCK).set(BLOCK.HASH,block.getParentHash()).where(BLOCK.NUM.eq(ULong.valueOf(blockNum-1))).execute();
-		}
+//		if (blockNum>0) {
+//			this.dslContext.update(BLOCK).set(BLOCK.HASH,block.getParentHash()).where(BLOCK.NUM.eq(ULong.valueOf(blockNum-1))).execute();
+//		}
 
 		/**
 		 * 更新block chain数据
 		 * 地址在account中更新
 		 */
 
-		List<EthBlock.Block> blocks = this.getBlocks(blockNum-1,blockNum+1);
+        List<JSONObject> blocks = new ArrayList<>();
+		if(blockNum>0) {
+             blocks = this.getBlocks(blockNum - 1, blockNum + 1);
+        }
 
 		//当前tps
 		Integer currentTps = 0;
 		if(blocks.size()==2) {
-			double transCount = block.getTransactions().size();
-			double blockTime = Numeric.decodeQuantity(blocks.get(1).getTimestampRaw()).subtract(Numeric.decodeQuantity(blocks.get(0).getTimestampRaw())).doubleValue();
+			double transCount = transactions.size();
+//			double blockTime = Numeric.decodeQuantity(blocks.get(1).getTimestampRaw()).subtract(Numeric.decodeQuantity(blocks.get(0).getTimestampRaw())).doubleValue();
+			double blockTime =2d;
 			double tps = transCount/blockTime;
 			BigDecimal trans = new BigDecimal(tps);
 			currentTps = trans.setScale(2,BigDecimal.ROUND_HALF_UP).intValue();
@@ -172,7 +160,6 @@ public class BlockService {
 			}else if(blockChain.getHighestTps()>=currentTps){
 				highestTps = blockChain.getHighestTps();
 			}
-
 			this.dslContext.update(BLOCK_CHAIN)
 					.set(BLOCK_CHAIN.LATEST_BLOCK_NUM,ULong.valueOf(blockNum))
 					.set(BLOCK_CHAIN.IRREVERSIBLE_BLOCK_NUM,ULong.valueOf(irreversibleBlockNum))
@@ -185,12 +172,11 @@ public class BlockService {
 					.execute();
 		}
 
-		List<EthBlock.TransactionResult> transactionResults = block.getTransactions();
 
-		if(!transactionResults.isEmpty()){
-			for(EthBlock.TransactionResult transactionResult:transactionResults){
-				EthBlock.TransactionObject transaction = (EthBlock.TransactionObject) transactionResult.get();
-				this.txService.saveTransaction(transaction, record);
+
+		if(!transactions.isEmpty()){
+			for (int i = 0; i < transactions.size(); i++) {
+				this.txService.saveTransaction(JSONArray.parseObject(transactions.get(i).toString()), record);
 			}
 		}
 
@@ -202,20 +188,21 @@ public class BlockService {
 	}
 
 
-	public List<EthBlock.Block> getBlocks(long start, long stop){
+	public List<JSONObject> getBlocks(long start, long stop){
 
-		Web3j web3j = Web3j.build(new HttpService(InbConstants.URL));
+//		Web3j web3j = Web3j.build(new HttpService(InbConstants.URL));
 
-		List<EthBlock.Block> blocks = new ArrayList<>();
+		List<JSONObject> blocks = new ArrayList<>();
 		try {
 
 			for (int i = (int) start; i <(int) stop; i++) {
-				DefaultBlockParameter defaultBlockParameter = new DefaultBlockParameterNumber(i);
-				Request<?, EthBlock> blockRequest = web3j.ethGetBlockByNumber(defaultBlockParameter, true);
-				EthBlock ethBlock = blockRequest.send();
-				blocks.add(ethBlock.getBlock());
+//				DefaultBlockParameter defaultBlockParameter = new DefaultBlockParameterNumber(i);
+//				Request<?, EthBlock> blockRequest = web3j.ethGetBlockByNumber(defaultBlockParameter, true);
+//				EthBlock ethBlock = blockRequest.send();
+				JSONObject object = inbChainService.getBlockByNumber(i);
+				blocks.add(object);
 			}
-		}catch (IOException e){
+		}catch (Exception e){
 			e.printStackTrace();
 		}
 
@@ -224,12 +211,13 @@ public class BlockService {
 
 	public Long getlastNumber(){
 
-		Web3j web3j = Web3j.build(new HttpService(InbConstants.URL));
+//		Web3j web3j = Web3j.build(new HttpService(InbConstants.URL));
 		Long blockNumber = 0L;
 		try {
-			EthBlockNumber ethBlockNumber = web3j.ethBlockNumber().send();
-			blockNumber = ethBlockNumber.getBlockNumber().longValue();
-		}catch (IOException e){
+			blockNumber = inbChainService.getLatestBlockNumber().longValue();
+//			EthBlockNumber ethBlockNumber = web3j.ethBlockNumber().send();
+//			blockNumber = ethBlockNumber.getBlockNumber().longValue();
+		}catch (Exception e){
 			e.printStackTrace();
 		}
 
@@ -244,26 +232,26 @@ public class BlockService {
 	}
 
 	public List<BlockDTO> getLastBlocks(){
-		
+
 		 List<BlockDTO> result = this.dslContext.select(BLOCK.NUM,BLOCK.HASH,BLOCK.WITNESS_ADDRESS)
 		.from(BLOCK).orderBy(BLOCK.TIMESTAMP.desc()).limit(10).fetchInto(BlockDTO.class);
-		
-		
+
+
 		return result;
 	}
 
-	
+
 	public BlockDTO getBlockByNum(long num) {
-		
+
 //		List<Field<?>> fields = new ArrayList<>(Arrays.asList(BLOCK.fields()));
 //		fields.add(DSL.select(DSL.max(BLOCK.NUM)).from(BLOCK).asField("maxNum"));
-		
+
 		BlockDTO block=this.dslContext.select(BLOCK.ID,BLOCK.NUM,BLOCK.HASH,BLOCK.TIMESTAMP,BLOCK.TX_COUNT,BLOCK.SIZE,BLOCK.PARENT_HASH,BLOCK.REWARD,BLOCK.TX_COUNT).from(BLOCK).where(BLOCK.NUM.eq(ULong.valueOf(num))).fetchOneInto(BlockDTO.class);
 
 		BigDecimal reward = new BigDecimal(block.getReward()/Math.pow(10,18));
 		block.setReward(reward.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
-		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
-		
+//		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
+
 		return block;
 	}
 
@@ -278,7 +266,7 @@ public class BlockService {
 			setReward(Arrays.asList(block));
 		}
 
-		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
+//		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
 
 		return block;
 	}
@@ -288,14 +276,14 @@ public class BlockService {
 
 		List<Field<?>> fields = new ArrayList<>(Arrays.asList(BLOCK.fields()));
 		fields.add(DSL.select(DSL.max(BLOCK.NUM)).from(BLOCK).asField("maxNum"));
-		
+
 		BlockDTO block=this.dslContext.select(fields).from(BLOCK).where(BLOCK.HASH.eq(hash)).fetchOneInto(BlockDTO.class);
-		
+
 		if (block!=null) {
 			setReward(Arrays.asList(block));
 		}
-		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
-		
+//		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
+
 		return block;
 	}
 
@@ -303,58 +291,58 @@ public class BlockService {
 
 		List<Field<?>> fields = new ArrayList<>(Arrays.asList(BLOCK.fields()));
 		fields.add(DSL.select(DSL.max(BLOCK.NUM)).from(BLOCK).asField("maxNum"));
-		
+
 		BlockDTO block=this.dslContext.select(fields).from(BLOCK).where(BLOCK.PARENT_HASH.eq(hash)).fetchOneInto(BlockDTO.class);
-		
+
 		if (block!=null) {
-			setReward(Arrays.asList(block));			
+			setReward(Arrays.asList(block));
 		}
 
-		
+
 		return block;
 	}
-	
+
 	public ListModel<BlockDTO, BlockCriteriaDTO> listBlocks(BlockCriteriaDTO criteria){
-		
+
 		ArrayList<Condition> conditions = new ArrayList<>();
-		
+
 		 SelectJoinStep<?> listQuery = this.dslContext.select(BLOCK.ID,BLOCK.NUM,BLOCK.HASH,BLOCK.SIZE,BLOCK.CONFIRMED,BLOCK.TIMESTAMP,BLOCK.WITNESS_ADDRESS,BLOCK.TX_COUNT,BLOCK.REWARD,BLOCK.WITNESS_ADDRESS.as("witness"))
 		.from(BLOCK);
-		
-		
+
+
 		SelectJoinStep<Record1<Integer>> countQuery = dslContext.select(DSL.count())
 		.from(BLOCK);
-		
+
 		if (StringUtils.isNotBlank(criteria.getProducedBy())) {
 			conditions.add(BLOCK.WITNESS_ADDRESS.eq(criteria.getProducedBy()));
 		}
-		
+
 		long totalCount = this.dslContext.select(DSL.count())
 				.from(BLOCK)
 				.fetchOneInto(Long.class);
-		
+
 		List<BlockDTO> items = listQuery.where(conditions).orderBy(BLOCK.NUM.desc()).limit(criteria.getLimit()).offset(criteria.getOffSet()).fetchInto(BlockDTO.class);
-		
+
 		ListModel<BlockDTO, BlockCriteriaDTO> result = new ListModel<BlockDTO, BlockCriteriaDTO>(criteria, items, totalCount);
 		for(BlockDTO blockDTO:result.getItems()){
-			blockDTO.setTimestamp(blockDTO.getTimestamp().substring(0,blockDTO.getTimestamp().indexOf(".")));
+//			blockDTO.setTimestamp(blockDTO.getTimestamp().substring(0,blockDTO.getTimestamp().indexOf(".")));
 			BigDecimal reward = new BigDecimal(blockDTO.getReward()/Math.pow(10,18));
 			blockDTO.setReward(reward.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
 		}
-		
+
 		return result;
 	}
-	
-	
+
+
 	private void setReward(List<BlockDTO> blocks) {
-		
+
 		// Rewards are fixed for block production, right now always 32trx, may (or may not change with time)
 		// If it changes handle it here based on block timestamp
-		
+
 		for(BlockDTO block:blocks) {
 //			block.setReward("32 TRX");
 		}
-		
+
 	}
 
 
@@ -377,6 +365,9 @@ public class BlockService {
 
 	public ListModel<Node, NodeCriteriaDTO> getNodeInfo(NodeCriteriaDTO criteria){
 		ArrayList<Condition> conditions = new ArrayList<>();
+		if(criteria.getAddress() !=null){
+			conditions.add(NODE.ADDRESS.eq(criteria.getAddress()));
+		}
 		SelectJoinStep<?> listQuery = this.dslContext.select()
 				.from(NODE);
 		long totalCount = this.dslContext.select(DSL.count())
@@ -385,8 +376,8 @@ public class BlockService {
 		List<Node> items = listQuery.where(conditions).orderBy(NODE.VOTE_NUMBER.desc()).limit(criteria.getLimit()).offset(criteria.getOffSet()).fetchInto(Node.class);
 
 		double total = 0;
-
-		for(Node node:items){
+		List<Node> nodes = this.dslContext.select().from(NODE).fetchInto(Node.class);
+		for (Node node : nodes) {
 			total+=node.getVoteNumber().doubleValue();
 		}
 
@@ -411,5 +402,5 @@ public class BlockService {
 	}
 
 
-	
+
 }

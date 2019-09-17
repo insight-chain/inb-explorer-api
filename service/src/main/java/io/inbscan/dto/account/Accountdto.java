@@ -2,32 +2,48 @@ package io.inbscan.dto.account;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.List;
+
 public class Accountdto {
 
 
     @JsonIgnore
     private Long id;
 
+    private String address;
+
     /**
      * 账户余额
      */
-    private double balance;
+    private Double balance;
     /**
      * 已使用net
      */
-    private long used;
+    private Double used;
 
     /**
      * 可使用net
      */
-    private long usableness;
+    private Long usable;
 
     /**
      * 已抵用INB
      */
-    private String mortgagte;
+    private Double mortgage;
 
     private Integer nonce;
+
+    private Double regular;
+
+    private Double redeemValue;
+
+    private Long redeemStartHeight;
+
+    private Long voteNumber;
+
+    private Long lastReceiveVoteAwardTime;
+
+    private List<StoreDTO> storeDTO;
 
 
     public Long getId() {
@@ -38,37 +54,44 @@ public class Accountdto {
         this.id = id;
     }
 
-    public double getBalance() {
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Double getBalance() {
         return balance;
     }
 
-    public void setBalance(double balance) {
+    public void setBalance(Double balance) {
         this.balance = balance;
     }
 
-
-    public long getUsed() {
+    public Double getUsed() {
         return used;
     }
 
-    public void setUsed(long used) {
+    public void setUsed(Double used) {
         this.used = used;
     }
 
-    public long getUsableness() {
-        return usableness;
+    public Long getUsable() {
+        return usable;
     }
 
-    public void setUsableness(long usableness) {
-        this.usableness = usableness;
+    public void setUsable(Long usable) {
+        this.usable = usable;
     }
 
-    public String getMortgagte() {
-        return mortgagte;
+    public Double getMortgage() {
+        return mortgage;
     }
 
-    public void setMortgagte(String mortgagte) {
-        this.mortgagte = mortgagte;
+    public void setMortgage(Double mortgage) {
+        this.mortgage = mortgage;
     }
 
     public Integer getNonce() {
@@ -77,5 +100,53 @@ public class Accountdto {
 
     public void setNonce(Integer nonce) {
         this.nonce = nonce;
+    }
+
+    public List<StoreDTO> getStoreDTO() {
+        return storeDTO;
+    }
+
+    public void setStoreDTO(List<StoreDTO> storeDTO) {
+        this.storeDTO = storeDTO;
+    }
+
+    public Double getRegular() {
+        return regular;
+    }
+
+    public void setRegular(Double regular) {
+        this.regular = regular;
+    }
+
+    public Double getRedeemValue() {
+        return redeemValue;
+    }
+
+    public void setRedeemValue(Double redeemValue) {
+        this.redeemValue = redeemValue;
+    }
+
+    public Long getRedeemStartHeight() {
+        return redeemStartHeight;
+    }
+
+    public void setRedeemStartHeight(Long redeemStartHeight) {
+        this.redeemStartHeight = redeemStartHeight;
+    }
+
+    public Long getVoteNumber() {
+        return voteNumber;
+    }
+
+    public void setVoteNumber(Long voteNumber) {
+        this.voteNumber = voteNumber;
+    }
+
+    public Long getLastReceiveVoteAwardTime() {
+        return lastReceiveVoteAwardTime;
+    }
+
+    public void setLastReceiveVoteAwardTime(Long lastReceiveVoteAwardTime) {
+        this.lastReceiveVoteAwardTime = lastReceiveVoteAwardTime;
     }
 }
