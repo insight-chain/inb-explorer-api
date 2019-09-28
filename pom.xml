@@ -25,7 +25,18 @@
         <junit.version>4.12</junit.version>
     </properties>
 
-
+    <distributionManagement>
+        <repository>
+            <id>nexus</id>
+            <name>Releases</name>
+            <url>${releaseURL}</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus</id>
+            <name>Snapshot</name>
+            <url>${snapshotURL}</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 
     <dependencyManagement>
@@ -98,6 +109,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.1.1</version>
                         <configuration>
                             <additionalparam>-Xdoclint:none</additionalparam>
                         </configuration>

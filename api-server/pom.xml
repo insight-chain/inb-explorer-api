@@ -16,7 +16,7 @@
         <jooby.version>1.3.0</jooby.version>
         <jooq.version>3.9.2</jooq.version>
         <!-- Startup class -->
-        <application.class>io.inbsacn.ApiApp</application.class>
+        <application.class>io.inbscan.ApiApp</application.class>
         <application.debug>8003</application.debug>
         <application.fork>true</application.fork>
     </properties>

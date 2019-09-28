@@ -6,6 +6,8 @@ import io.inbscan.dto.ListModel;
 import io.inbscan.dto.ListResult;
 import io.inbscan.dto.account.AccountCriteria;
 import io.inbscan.dto.account.Accountdto;
+import io.inbscan.dto.account.Token;
+import io.inbscan.dto.token.TokenCriteria;
 import io.inbscan.dto.transaction.TransactionCriteria;
 import io.inbscan.dto.transaction.TransactionDTO;
 import io.inbscan.dto.transaction.TransferModel;
@@ -75,16 +77,44 @@ public class AccountRoutes {
 
 
 	@GET
-	@Path(ApiAppRoutePaths.V1.ACCOUNT_SEARCH_TRANSFERS_)
-	public ListModel<TransactionDTO, TransactionCriteria> listTransactionsWallet(Optional<String> address, Optional<Integer> page, Optional<Integer> limit) {
+	@Path(ApiAppRoutePaths.V1.ACCOUNT_SEARCH_TRANSFERS)
+	public ListModel<TransactionDTO, TransactionCriteria> listTransactionsWallet(Optional<String> address, Optional<Integer> transType, Optional<Integer> page, Optional<Integer> limit) {
 
 		TransactionCriteria criteria = new TransactionCriteria();
 		criteria.setLimit(limit.orElse(20));
 		criteria.setPage(page.orElse(1));
 		criteria.setAddress(address.orElse(null));
+		criteria.setTransType(transType.orElse(null));
 		return this.transactionService.getTransactionsForWallet(criteria);
 
 	}
+
+	@GET
+	@Path(ApiAppRoutePaths.V1.ACCOUNT_SEARCH_TOKEN)
+	public ListModel<Token, TokenCriteria> listAccountToken(Optional<String> address, Optional<Integer> page, Optional<Integer> limit) {
+
+		TokenCriteria criteria = new TokenCriteria();
+		criteria.setLimit(limit.orElse(20));
+		criteria.setPage(page.orElse(1));
+		criteria.setAddress(address.orElse(null));
+		return this.accountService.listAccountToken(criteria);
+
+	}
+
+
+	@GET
+	@Path(ApiAppRoutePaths.V1.TOKEN)
+	public ListModel<Token, TokenCriteria> listToken(Optional<String> address, Optional<String> symbol,Optional<Integer> page, Optional<Integer> limit) {
+
+		TokenCriteria criteria = new TokenCriteria();
+		criteria.setLimit(limit.orElse(20));
+		criteria.setPage(page.orElse(1));
+		criteria.setAddress(address.orElse(null));
+		criteria.setSymbol(symbol.orElse(null));
+		return this.accountService.listToken(criteria);
+
+	}
+
 
 	/* FIXME
 	 * DISABLED
