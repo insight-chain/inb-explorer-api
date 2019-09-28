@@ -1,16 +1,23 @@
 package io.inbscan.dto.transaction;
 
+import io.inbscan.model.tables.pojos.TransactionLog;
+import jnr.ffi.Struct;
+
+import java.util.List;
+
 public class TransactionDTO {
+
+    private Long blockId;
 
     /**
      * 区块号
      */
-    private String blockNumber;
+    private Long blockNumber;
 
     /**
      * 交易时间
      */
-    private String timestamp;
+    private Long timestamp;
 
     /**
      * 交易hash
@@ -70,6 +77,8 @@ public class TransactionDTO {
      */
     private String status;
 
+    private List<TransactionLog> transactionLog;
+
     //    /**
 //     * 交易唯一值
 //     */
@@ -122,19 +131,27 @@ public class TransactionDTO {
 //    private String confirmations;
 
 
-    public String getBlockNumber() {
+    public Long getBlockId() {
+        return blockId;
+    }
+
+    public void setBlockId(Long blockId) {
+        this.blockId = blockId;
+    }
+
+    public Long getBlockNumber() {
         return blockNumber;
     }
 
-    public void setBlockNumber(String blockNumber) {
+    public void setBlockNumber(Long blockNumber) {
         this.blockNumber = blockNumber;
     }
 
-    public String getTimestamp() {
+    public Long getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(String timestamp) {
+    public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -216,5 +233,13 @@ public class TransactionDTO {
 
     public void setBindwith(String bindwith) {
         this.bindwith = bindwith;
+    }
+
+    public List<TransactionLog> getTransactionLog() {
+        return transactionLog;
+    }
+
+    public void setTransactionLog(List<TransactionLog> transactionLog) {
+        this.transactionLog = transactionLog;
     }
 }

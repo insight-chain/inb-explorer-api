@@ -1,17 +1,13 @@
 package io.inbscan.syn;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.inject.Inject;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.model.CityResponse;
 import io.inbscan.SynServerConfig;
 import io.inbscan.chain.InbChainService;
-import io.inbscan.dto.node.NodeDTO;
-import io.inbscan.dto.node.NodeInfo;
 import io.inbscan.model.tables.pojos.Node;
 import io.inbscan.model.tables.records.NodeRecord;
 import org.jooq.DSLContext;
@@ -63,7 +59,7 @@ public class SynNode {
                     logger.info("syn node start" + nodeObj.getString("Address"));
                     this.dslContext.insertInto(NODE)
                             .set(NODE.HOST, nodeInfoObj.getString("ip"))
-                            .set(NODE.PORT, Integer.valueOf(nodeInfoObj.getString("port")))
+                            .set(NODE.PORT, nodeInfoObj.getString("port"))
                             .set(NODE.DATE_CREATED, Timestamp.valueOf(LocalDateTime.now()))
                             .set(NODE.COUNTRY, nodeInfoObj.getString("nation"))
                             .set(NODE.IMAGE, nodeInfoObj.getString("image"))
@@ -75,6 +71,7 @@ public class SynNode {
                             .set(NODE.VOTE_NUMBER, ULong.valueOf(nodeObj.getInteger("Stake")))
                             .set(NODE.EMAIL, nodeInfoObj.getString("email"))
                             .set(NODE.TYPE, 2)
+                            .set(NODE.DATA,nodeInfoObj.getString("data"))
                             .execute();
                 }
             }
@@ -160,27 +157,6 @@ public class SynNode {
     }
 
 
-    public void updateNodesStatus() {
-
-        List<NodeRecord> dbNodes = this.dslContext.select(NODE.fields()).from(NODE).orderBy(NODE.LAST_UPDATED.asc()).limit(50).fetchInto(NodeRecord.class);
-
-
-        for (NodeRecord dbNode : dbNodes) {
-
-            boolean isUp = pingHost(dbNode.getHost(), dbNode.getPort(), NODE_PING_TIMEOUT);
-
-            dbNode.setUp(isUp ? (byte) 1 : (byte) 0);
-
-            if (isUp) {
-                dbNode.setLastUp(Timestamp.valueOf(LocalDateTime.now()));
-            }
-
-            dbNode.setLastUpdated(Timestamp.valueOf(LocalDateTime.now()));
-
-            this.dslContext.executeUpdate(dbNode);
-        }
-
-    }
 
     public void removeDownNodes() {
         Timestamp delay = Timestamp.valueOf(LocalDateTime.now().minusHours(1));

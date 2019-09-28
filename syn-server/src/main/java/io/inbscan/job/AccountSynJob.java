@@ -3,8 +3,8 @@ package io.inbscan.job;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.inbscan.SynServerConfig;
-import io.inbscan.service.AccountService;
 import io.inbscan.exception.ServiceException;
+import io.inbscan.service.AccountService;
 import io.inbscan.syn.SynAccount;
 import org.jooby.quartz.Scheduled;
 import org.quartz.DisallowConcurrentExecution;
@@ -48,29 +48,15 @@ public class AccountSynJob {
 //
 //	}
 
-	@Scheduled("30ms")
-	public void syncAccountResync() throws ServiceException {
-
-		if (!this.config.isAccountJobEnabled()) {
-			return;
-		}
-
-		this.synAccount.syncAccountResync();
-
-	}
-
-
-
-//	@Scheduled("5m")
-//	public void removeLocks() {
-//		this.accountSyncService.removeLocks();
+//	@Scheduled("30ms")
+//	public void syncAccountResync() throws ServiceException {
+//
+//		if (!this.config.isAccountJobEnabled()) {
+//			return;
+//		}
+//
+//		this.synAccount.syncAccountResync();
+//
 //	}
 
-	public void syncGenesisAccounts() {
-		//TODO:
-		//Genesis accounts might be used without any transactions appearing on blockchain : for example block rewarding
-		// These accounts are updated here
-
-	}
-	
 }

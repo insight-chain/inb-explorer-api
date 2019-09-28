@@ -1,6 +1,7 @@
 package io.inbscan.dto.account;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.inbscan.model.tables.pojos.TokenHolder;
 
 import java.util.List;
 
@@ -16,20 +17,6 @@ public class Accountdto {
      * 账户余额
      */
     private Double balance;
-    /**
-     * 已使用net
-     */
-    private Double used;
-
-    /**
-     * 可使用net
-     */
-    private Long usable;
-
-    /**
-     * 已抵用INB
-     */
-    private Double mortgage;
 
     private Integer nonce;
 
@@ -41,9 +28,13 @@ public class Accountdto {
 
     private Long voteNumber;
 
-    private Long lastReceiveVoteAwardTime;
+    private Long lastReceiveVoteAwardHeight;
 
-    private List<StoreDTO> storeDTO;
+    private ResDTO res;
+
+    private List<StoreDTO> store;
+
+    private List<TokenDTO> token;
 
 
     public Long getId() {
@@ -70,28 +61,12 @@ public class Accountdto {
         this.balance = balance;
     }
 
-    public Double getUsed() {
-        return used;
+    public ResDTO getRes() {
+        return res;
     }
 
-    public void setUsed(Double used) {
-        this.used = used;
-    }
-
-    public Long getUsable() {
-        return usable;
-    }
-
-    public void setUsable(Long usable) {
-        this.usable = usable;
-    }
-
-    public Double getMortgage() {
-        return mortgage;
-    }
-
-    public void setMortgage(Double mortgage) {
-        this.mortgage = mortgage;
+    public void setRes(ResDTO res) {
+        this.res = res;
     }
 
     public Integer getNonce() {
@@ -100,14 +75,6 @@ public class Accountdto {
 
     public void setNonce(Integer nonce) {
         this.nonce = nonce;
-    }
-
-    public List<StoreDTO> getStoreDTO() {
-        return storeDTO;
-    }
-
-    public void setStoreDTO(List<StoreDTO> storeDTO) {
-        this.storeDTO = storeDTO;
     }
 
     public Double getRegular() {
@@ -142,11 +109,27 @@ public class Accountdto {
         this.voteNumber = voteNumber;
     }
 
-    public Long getLastReceiveVoteAwardTime() {
-        return lastReceiveVoteAwardTime;
+    public Long getLastReceiveVoteAwardHeight() {
+        return lastReceiveVoteAwardHeight;
     }
 
-    public void setLastReceiveVoteAwardTime(Long lastReceiveVoteAwardTime) {
-        this.lastReceiveVoteAwardTime = lastReceiveVoteAwardTime;
+    public void setLastReceiveVoteAwardHeight(Long lastReceiveVoteAwardHeight) {
+        this.lastReceiveVoteAwardHeight = lastReceiveVoteAwardHeight;
+    }
+
+    public List<StoreDTO> getStore() {
+        return store;
+    }
+
+    public void setStore(List<StoreDTO> store) {
+        this.store = store;
+    }
+
+    public List<TokenDTO> getToken() {
+        return token;
+    }
+
+    public void setToken(List<TokenDTO> token) {
+        this.token = token;
     }
 }

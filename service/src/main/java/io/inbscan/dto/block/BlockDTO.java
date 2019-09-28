@@ -1,7 +1,10 @@
 package io.inbscan.dto.block;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class BlockDTO {
 
+    @JsonIgnore
 	private Long id;
 
 	private Long num;
@@ -16,7 +19,7 @@ public class BlockDTO {
 	
 	private int txCount;
 	
-	private String timestamp;
+	private Long timestamp;
 	
 	private String witness;//address or url
 	
@@ -71,11 +74,11 @@ public class BlockDTO {
 		this.num = num;
 	}
 	
-	public String getTimestamp() {
+	public Long getTimestamp() {
 		return timestamp;
 	}
 
-	public void setTimestamp(String timestamp) {
+	public void setTimestamp(Long timestamp) {
 		this.timestamp = timestamp;
 	}
 

@@ -95,18 +95,22 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-flyway</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-commons-email</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-pebble</artifactId>
+            <version>${jooby.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -117,10 +121,12 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-pac4j</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
         <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>pac4j-oauth</artifactId>
+            <version>3.7.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -131,10 +137,12 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.38</version>
         </dependency>
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-jooq</artifactId>
+            <version>${jooby.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jooq</groupId>
@@ -145,6 +153,7 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-jackson</artifactId>
+            <version>${jooby.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -155,10 +164,12 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-whoops</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-netty</artifactId>
+            <version>${jooby.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -169,11 +180,12 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby-quartz</artifactId>
+            <version>${jooby.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.jooby</groupId>
-            <artifactId>jooby-commons-email</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.jooby</groupId>-->
+<!--            <artifactId>jooby-commons-email</artifactId>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
@@ -193,7 +205,9 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
         </dependency>
+
 
         <!-- Tests -->
         <dependency>
@@ -205,6 +219,7 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
+            <version>4.0.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -226,10 +241,35 @@
         </dependencies>
     </dependencyManagement>
 
-<!--    <repositories>-->
-<!--        <repository>-->
-<!--            <id>jitpack.io</id>-->
-<!--            <url>https://jitpack.io</url>-->
-<!--        </repository>-->
-<!--    </repositories>-->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <profiles>
+        <profile>
+            <id>syn-server</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+                <jdk>1.8</jdk>
+            </activation>
+            <properties>
+                <maven.compiler.source>1.8</maven.compiler.source>
+                <maven.compiler.target>1.8</maven.compiler.target>
+                <maven.compiler.compilerVersion>1.8</maven.compiler.compilerVersion>
+            </properties>
+        </profile>
+    </profiles>
+
 </project>

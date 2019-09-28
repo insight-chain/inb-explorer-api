@@ -3,8 +3,8 @@ package io.inbscan.syn;
 
 import com.google.inject.Inject;
 import io.inbscan.SynServerConfig;
-import io.inbscan.service.AccountService;
 import io.inbscan.exception.ServiceException;
+import io.inbscan.service.AccountService;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.slf4j.Logger;
@@ -30,8 +30,8 @@ public class SynAccount {
     }
 
     public String getNextAcountToSync() {
-//		return this.dslContext.select(SYNC_ACCOUNT.ADDRESS).from(SYNC_ACCOUNT).where(SYNC_ACCOUNT.DATE_LOCKED.isNull()).and(SYNC_ACCOUNT.ORIGIN.notIn("contract_vote_witness","contract_unfreeze_balance","resync")).orderBy(SYNC_ACCOUNT.DATE_CREATED.asc()).limit(1).fetchOneInto(String.class);
-        return this.dslContext.select(SYNC_ACCOUNT.ADDRESS).from(SYNC_ACCOUNT).orderBy(SYNC_ACCOUNT.DATE_CREATED.asc()).limit(1).fetchOneInto(String.class);
+		return this.dslContext.select(SYNC_ACCOUNT.ADDRESS).from(SYNC_ACCOUNT).where(SYNC_ACCOUNT.DATE_LOCKED.isNull()).orderBy(SYNC_ACCOUNT.DATE_CREATED.asc()).limit(1).fetchOneInto(String.class);
+//        return this.dslContext.select(SYNC_ACCOUNT.ADDRESS).from(SYNC_ACCOUNT).orderBy(SYNC_ACCOUNT.DATE_CREATED.asc()).limit(1).fetchOneInto(String.class);
     }
 
     public String getNextAcountVoteToSync() {
@@ -66,44 +66,44 @@ public class SynAccount {
     }
 
 
-    public void syncAccountVote() throws ServiceException{
-
-        String address = this.getNextAcountVoteToSync();
-
-        if (address==null) {
-            return;
-        }
-
-        logger.debug("=> Syncing account:"+address);
-
-        this.startSync(address);
-
-        this.accountService.createOrUpdateAccount(address);
-
-
-        this.endSync(address);
-
-    }
-
-
-    public void syncAccountResync() throws ServiceException{
-
-        String address = this.getNextAcountResyncToSync();
-
-        if (address==null) {
-            return;
-        }
-
-        logger.debug("=> Syncing account:"+address);
-
-        this.startSync(address);
-
-        this.accountService.createOrUpdateAccount(address);
+//    public void syncAccountVote() throws ServiceException{
+//
+//        String address = this.getNextAcountVoteToSync();
+//
+//        if (address==null) {
+//            return;
+//        }
+//
+//        logger.debug("=> Syncing account:"+address);
+//
+//        this.startSync(address);
+//
+//        this.accountService.createOrUpdateAccount(address);
+//
+//
+//        this.endSync(address);
+//
+//    }
 
 
-        this.endSync(address);
-
-    }
+//    public void syncAccountResync() throws ServiceException{
+//
+//        String address = this.getNextAcountResyncToSync();
+//
+//        if (address==null) {
+//            return;
+//        }
+//
+//        logger.debug("=> Syncing account:"+address);
+//
+//        this.startSync(address);
+//
+//        this.accountService.createOrUpdateAccount(address);
+//
+//
+//        this.endSync(address);
+//
+//    }
 
 
 

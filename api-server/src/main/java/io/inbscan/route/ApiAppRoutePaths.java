@@ -23,7 +23,8 @@ public interface ApiAppRoutePaths {
 		public static final String ACCOUNT_FREEZE_ALL = ACCOUNT+"/freeze";
 		public static final String ACCOUNT_WITHDRAWAL = ACCOUNT+"/withdrawal";
 		public static final String ACCOUNT_SEARCH = ACCOUNT+"/search";
-		public static final String ACCOUNT_SEARCH_TRANSFERS_ = ACCOUNT+"/search/transfers";
+		public static final String ACCOUNT_SEARCH_TRANSFERS = ACCOUNT+"/search/transfers";
+		public static final String ACCOUNT_SEARCH_TOKEN = ACCOUNT+"/search/token";
 
 		
 		//WITNESS
@@ -31,7 +32,7 @@ public interface ApiAppRoutePaths {
 		public static final String WITNESS_ALL = WITNESS+"/all";
 		
 		//TOKEN
-		public static final String TOKEN = VERSION+"/token";
+		public static final String TOKEN = VERSION+"/tokens";
 		public static final String TOKEN_TRANSFERS = TOKEN+"/transfers";
 		public static final String TOKEN_PARTICIPANTS = TOKEN+"/participants";
 		public static final String TOKEN_HOLDERS = TOKEN+"/holders";
@@ -58,6 +59,8 @@ public interface ApiAppRoutePaths {
 		public static final String BLOCK_CREATE = BLOCK+"/create";
 		public static final String BLOCK_SEARCH = BLOCK+"/search";
 		public static final String BLOCK_SEARCH_TRANSFERS = BLOCK+"/search/transfers";
+
+		//NODE
 		public static final String NODE_INFO = VERSION+"/node/info";
 
 		//TRANSACTION
@@ -65,6 +68,7 @@ public interface ApiAppRoutePaths {
 		public static final String TRANSACTIONS_WALLET = VERSION+"/transactions/wallet";
 		public static final String TRANSACTION_SEARCH = VERSION+"/transaction/search";
 		public static final String TRANSACTION_SEND = VERSION+"/transaction/send";
+		public static final String TRANSACTION_AWARD_RECORD = VERSION+"/transaction/award";
 
 
 		

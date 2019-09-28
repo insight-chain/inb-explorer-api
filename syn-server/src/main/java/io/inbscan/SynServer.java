@@ -16,9 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SynServer extends Jooby {
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(SynServer.class);
-	
+
 	{
 		use(new SynServerModule());
 
@@ -29,16 +29,16 @@ public class SynServer extends Jooby {
 		use(new Jackson());
 		use(new Flywaydb());
 
-		
+
 		use(new Quartz(AccountSynJob.class, SynNodeSynJob.class, BlockSynJob.class, NodeSynJob.class));
 
-		
+
 		onStart(registry -> {
-			
+
 			SynServerConfig config = registry.require(SynServerConfig.class);
-			
+
 			logger.info("=> Sync node up [id = {}]",config.getNodeId());
-			
+
 			DSLContext dslContext = registry.require(DSLContext.class);
 
 			Settings settings = new Settings();
@@ -47,11 +47,11 @@ public class SynServer extends Jooby {
 			dslContext.configuration().set(settings);
 
 		});
-		
+
 		onStop((registry)->{
-			
+
 		});
-		
+
 
 		get("/", (req, res) -> {
 

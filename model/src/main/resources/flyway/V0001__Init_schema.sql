@@ -9,17 +9,22 @@ CREATE TABLE `account` (
   `type` tinyint(4) NOT NULL,
   `address` varchar(45) NOT NULL,
   `balance` double NOT NULL DEFAULT '0',
-  `allowance` bigint(20) unsigned DEFAULT NULL,
-  `latest_withdaw_time` datetime(3) DEFAULT NULL,
+  `usable` bigint(20) unsigned DEFAULT NULL,
+  `used` bigint(20) unsigned DEFAULT NULL,
+  `latest_withdraw_time` datetime(3) DEFAULT NULL,
   `create_time` datetime(3) DEFAULT NULL,
-  `bandwidth` bigint(20) DEFAULT NULL,
   `is_witness` tinyint(3) unsigned DEFAULT NULL,
   `is_committee` tinyint(3) unsigned DEFAULT NULL,
   `transfer_from_count` int(11) DEFAULT NULL,
   `transfer_to_count` int(11) DEFAULT NULL,
   `tokens_count` int(11) DEFAULT NULL,
-  `participations_count` int(11) DEFAULT NULL,
-  `mortgagte` varchar(1000) DEFAULT NULL,
+  `redeem` double NOT NULL DEFAULT '0',
+  `redeem_start_height` bigint(20) DEFAULT NULL,
+  `vote_number`bigint(20) DEFAULT NULL,
+  `last_receive_vote_award_height`  bigint(20) DEFAULT NULL,
+  `regular` double NOT NULL DEFAULT '0',
+  `mortgage` double DEFAULT NULL,
+  `mortgage_height` bigint(20) DEFAULT NULL,
   `nonce` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `account_address_unique` (`address`),
@@ -99,7 +104,7 @@ DROP TABLE IF EXISTS `node`;
 CREATE TABLE `node` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `host` varchar(40) NOT NULL,
-  `port` int(11) NOT NULL,
+  `port` varchar(32) NOT NULL,
   `up` tinyint(4) NOT NULL DEFAULT '0',
   `longitude` decimal(11,8) DEFAULT NULL,
   `latitude` decimal(10,8) DEFAULT NULL,
@@ -119,6 +124,7 @@ CREATE TABLE `node` (
   `vote_number` bigint(20) unsigned DEFAULT NULL,
   `type` int(2) DEFAULT NULL,
   `intro` varchar(512) DEFAULT NULL,
+  `data` varchar(512) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `node_unique` (`host`,`port`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -200,7 +206,9 @@ CREATE TABLE `transaction` (
   `timestamp` datetime DEFAULT NULL,
   `expiration` datetime DEFAULT NULL,
   `confirmed` tinyint(1) NOT NULL DEFAULT '0',
-  `block_id` bigint(20) unsigned NOT NULL,
+  `block_id` bigint(20) unsigned DEFAULT NULL,
+  `block_num` bigint(20) unsigned DEFAULT NULL,
+  `block_hash` varchar(200)  DEFAULT NULL,
   `from` varchar(45) DEFAULT NULL,
   `type` int(11) DEFAULT NULL,
   `bindwith` varchar(64) DEFAULT NULL,
@@ -215,10 +223,15 @@ CREATE TABLE `transaction` (
   `cumulative_gas_used` double unsigned DEFAULT NULL,
   `gas_used` double unsigned DEFAULT NULL,
   `confirmations` varchar(256) DEFAULT NULL,
+  `token_name` varchar(200) DEFAULT NULL,
+  `token_address` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hash_UNIQUE` (`hash`),
   KEY `fk_transaction_block_idx` (`block_id`),
   KEY `transaction_timestamp_index` (`timestamp`),
+  KEY `transaction_hash_index` (`hash`),
+  KEY `token_name_index` (`token_name`),
+  KEY `token_address_index` (`token_address`),
   CONSTRAINT `fk_transaction_block` FOREIGN KEY (`block_id`) REFERENCES `block` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
@@ -232,7 +245,7 @@ DROP TABLE IF EXISTS `transfer`;
 CREATE TABLE `transfer` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `from` varchar(45) NOT NULL,
-  `to` varchar(45) NOT NULL,
+  `to` varchar(45) DEFAULT NULL,
   `amount` bigint(20) unsigned NOT NULL,
   `token` varchar(45) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `timestamp` datetime NOT NULL,
@@ -262,7 +275,7 @@ CREATE TABLE `transaction_log` (
   `removed` int(2) DEFAULT NULL,
   `from` varchar(200) DEFAULT NULL,
   `to` varchar(200) DEFAULT NULL,
-  `amount` bigint(20) unsigned DEFAULT NULL,
+  `amount` double DEFAULT NULL,
   `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `inline_from_index` (`from`),
@@ -276,17 +289,69 @@ CREATE TABLE `transaction_log` (
 -- Table structure for table `store`
 --
 DROP TABLE IF EXISTS `store`;
-CREATE TABLE `transaction_log` (
+CREATE TABLE `store` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `address` varchar(200) DEFAULT NULL,
-  `start_time` datetime DEFAULT NULL,
-  `last_received_time` datetime DEFAULT NULL,
-  `days` int(2) DEFAULT NULL,
-  `nonce` int(2) DEFAULT NULL,
+  `hash` varchar(200) DEFAULT NULL,
+  `start_height` bigint(20) DEFAULT NULL,
+  `last_received_height` bigint(20) DEFAULT NULL,
+  `lock_height` bigint(20) DEFAULT NULL,
   `received` bigint(20) DEFAULT NULL,
-  `amount` bigint(20) unsigned DEFAULT NULL,
+  `amount` double DEFAULT NULL,
   `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `store_address_index` (`address`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
+
+--
+-- Table structure for table `token`
+--
+DROP TABLE IF EXISTS `token`;
+CREATE TABLE `token` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `address` varchar(200) DEFAULT NULL,
+  `intro` varchar(200) DEFAULT NULL,
+  `price` decimal DEFAULT NULL,
+  `light_token_address` varchar(200) DEFAULT NULL,
+  `issue_account_address` varchar(200) DEFAULT NULL,
+  `owner_address` varchar(200) DEFAULT NULL,
+  `issue_transaction_hash` varchar(200) DEFAULT NULL,
+  `symbol` varchar(200) DEFAULT NULL,
+  `name` varchar(200) DEFAULT NULL,
+  `icon` varchar(200) DEFAULT NULL,
+  `total_supply` double DEFAULT NULL,
+  `total_circulation` double DEFAULT NULL,
+  `total_market_cap` double DEFAULT NULL,
+  `decimals` int(2) DEFAULT NULL,
+  `state` int(2) DEFAULT NULL,
+  `holder_number` int(11) DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `web_site` varchar(200) DEFAULT NULL,
+  `telegram` varchar(200) DEFAULT NULL,
+  `facebook` varchar(200) DEFAULT NULL,
+  `wechat` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE  KEY `token_address_index` (`address`),
+  KEY `token_light_address_index` (`light_token_address`),
+  KEY `token_issue_address_index` (`issue_account_address`),
+  KEY `token_trans_index` (`issue_transaction_hash`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+
+--
+-- Table structure for table `token_holder`
+--
+DROP TABLE IF EXISTS `token_holder`;
+CREATE TABLE `token_holder` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `token_address` varchar(200) DEFAULT NULL,
+  `token_symbol` varchar(200) DEFAULT NULL,
+  `holder_address` varchar(200) DEFAULT NULL,
+  `balance` double DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `token_address_index` (`token_address`),
+  KEY `token_symbol_index` (`token_symbol`),
+  KEY `transaction_hash_index` (`holder_address`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;

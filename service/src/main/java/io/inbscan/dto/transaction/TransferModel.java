@@ -16,11 +16,13 @@ public class TransferModel {
 	
 	private String token;
 
-	private String timestamp;
+	private Long timestamp;
 
 	private String bindwith;
 
 	private Integer type;
+
+	private String status;
 	
 	
 	
@@ -40,15 +42,15 @@ public class TransferModel {
 		this.blockId = blockId;
 	}
 
-	public String getTimestamp() {
+	public Long getTimestamp() {
 		return timestamp;
 	}
 
-	public void setTimestamp(String timestamp) {
+	public void setTimestamp(Long timestamp) {
 		this.timestamp = timestamp;
 	}
 
-	//	public void setTimestamp(Timestamp timestamp) {
+//	public void setTimestamp(Timestamp timestamp) {
 //		this.timestamp = timestamp;
 //	}
 //
@@ -114,5 +116,13 @@ public class TransferModel {
 
 	public void setType(Integer type) {
 		this.type = type;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 }

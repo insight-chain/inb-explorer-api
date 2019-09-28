@@ -76,10 +76,11 @@ public class BlockRoutes {
 
 	@GET
 	@Path(ApiAppRoutePaths.V1.NODE_INFO)
-	public ListModel<Node, NodeCriteriaDTO> NodeInfo(Optional<Integer> page, Optional<Integer> limit){
+	public ListModel<Node, NodeCriteriaDTO> NodeInfo(Optional<Integer> page, Optional<Integer> limit,Optional<String> address){
 		NodeCriteriaDTO criteria = new NodeCriteriaDTO();
 		criteria.setLimit(limit.orElse(200));
 		criteria.setPage(page.orElse(1));
+		criteria.setAddress(address.orElse(null));
 		return this.blockService.getNodeInfo(criteria);
 	}
 //

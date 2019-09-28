@@ -12,6 +12,12 @@ public class TransactionCriteria extends CommonCriteriaDTO {
 	private String hash;
 
 	private String address;
+
+	private String type;
+
+	private String tokenAddress;
+
+	private Integer transType;
 	
 	
 	@Override
@@ -50,5 +56,29 @@ public class TransactionCriteria extends CommonCriteriaDTO {
 
 	public void setAddress(String address) {
 		this.address = address;
+	}
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	public String getTokenAddress() {
+		return tokenAddress;
+	}
+
+	public void setTokenAddress(String tokenAddress) {
+		this.tokenAddress = tokenAddress;
+	}
+
+	public Integer getTransType() {
+		return transType;
+	}
+
+	public void setTransType(Integer transType) {
+		this.transType = transType;
 	}
 }

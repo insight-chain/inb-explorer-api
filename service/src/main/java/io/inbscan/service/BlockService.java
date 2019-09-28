@@ -15,6 +15,7 @@ import io.inbscan.model.tables.pojos.Node;
 import io.inbscan.model.tables.records.BlockChainRecord;
 import io.inbscan.model.tables.records.BlockRecord;
 import io.inbscan.utils.HttpUtil;
+import io.inbscan.utils.InbConvertUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jooq.*;
 import org.jooq.impl.DSL;
@@ -248,8 +249,7 @@ public class BlockService {
 
 		BlockDTO block=this.dslContext.select(BLOCK.ID,BLOCK.NUM,BLOCK.HASH,BLOCK.TIMESTAMP,BLOCK.TX_COUNT,BLOCK.SIZE,BLOCK.PARENT_HASH,BLOCK.REWARD,BLOCK.TX_COUNT).from(BLOCK).where(BLOCK.NUM.eq(ULong.valueOf(num))).fetchOneInto(BlockDTO.class);
 
-		BigDecimal reward = new BigDecimal(block.getReward()/Math.pow(10,18));
-		block.setReward(reward.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
+		block.setReward(InbConvertUtils.AmountConvert(block.getReward()));
 //		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
 
 		return block;
@@ -326,8 +326,7 @@ public class BlockService {
 		ListModel<BlockDTO, BlockCriteriaDTO> result = new ListModel<BlockDTO, BlockCriteriaDTO>(criteria, items, totalCount);
 		for(BlockDTO blockDTO:result.getItems()){
 //			blockDTO.setTimestamp(blockDTO.getTimestamp().substring(0,blockDTO.getTimestamp().indexOf(".")));
-			BigDecimal reward = new BigDecimal(blockDTO.getReward()/Math.pow(10,18));
-			blockDTO.setReward(reward.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
+			blockDTO.setReward(InbConvertUtils.AmountConvert(blockDTO.getReward()));
 		}
 
 		return result;
@@ -355,11 +354,11 @@ public class BlockService {
 //		blockChainDto.setInbTotalSupply(new BigDecimal(blockChainDto.getInbTotalSupply()).divide(new BigDecimal(Math.pow(10,18))).doubleValue());
 
 		//TODO 开源时换掉此代码
-		BigDecimal inbTotalSupply = new BigDecimal(blockChainDto.getLatestBlockNum()*6.34);
-		blockChainDto.setInbTotalSupply(inbTotalSupply.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
-
-		BigDecimal mortgageInb = new BigDecimal(inbTotalSupply.multiply(new BigDecimal(0.3)).doubleValue());
-		blockChainDto.setMortgageNetInb(mortgageInb.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue());
+//		BigDecimal inbTotalSupply = new BigDecimal(blockChainDto.getLatestBlockNum()*6.34);
+		blockChainDto.setInbTotalSupply(1000000000d);
+//
+//		BigDecimal mortgageInb = new BigDecimal(inbTotalSupply.multiply(new BigDecimal(0.3)).doubleValue());
+		blockChainDto.setMortgageNetInb(InbConvertUtils.AmountConvert(blockChainDto.getMortgageNetInb()));
 		return blockChainDto;
 	}
 
@@ -385,6 +384,8 @@ public class BlockService {
 			BigDecimal b = new BigDecimal(node.getVoteNumber().doubleValue()/total);
 			double voteRatio = b.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue();
 			node.setVoteRatio(voteRatio);
+			long voteN = (long)InbConvertUtils.AmountConvert(node.getVoteNumber().doubleValue());
+			node.setVoteNumber(ULong.valueOf(voteN));
 		}
 		ListModel<Node, NodeCriteriaDTO> result = new ListModel<Node, NodeCriteriaDTO>(criteria, items, totalCount);
 

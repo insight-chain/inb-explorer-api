@@ -1,5 +1,6 @@
 package io.inbscan.syn;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.inject.Inject;
 import io.inbscan.SynServerConfig;
 import io.inbscan.chain.InbChainService;
@@ -14,6 +15,7 @@ import org.jooq.types.ULong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.protocol.core.methods.response.EthBlock;
+import org.web3j.utils.Numeric;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -112,22 +114,23 @@ public class SynBlock {
 
     public void syncBlocks(long start,long stop){
 
-        List<EthBlock.Block> blocks = blockService.getBlocks(start,stop);
+        List<JSONObject> blocks = blockService.getBlocks(start,stop);
 
 //		Collections.sort(blocks, (b1,b2)->{
 //            final int result = ComparisonChain.start().compare(b1.getNumber(), b2.getNumber()).result();
 //            return result;
 //		});
 
-        Iterator<EthBlock.Block> it = blocks.iterator();
+        Iterator<JSONObject> it = blocks.iterator();
 
         while(it.hasNext()) {
-            EthBlock.Block block = it.next();
-            logger.info("==> Syncing block: {}",block.getNumber());
+            JSONObject block = it.next();
+            long blockNum = Numeric.decodeQuantity(block.getJSONObject("result").getString("number")).longValue();
+            logger.info("==> Syncing block: {}",blockNum);
             try {
                 this.blockService.importInbBlock(block);
             }catch(Exception e) {
-                logger.error("Could not import block {}",block.getNumber(),e);
+                logger.error("Could not import block {}",blockNum,e);
             }
 
 

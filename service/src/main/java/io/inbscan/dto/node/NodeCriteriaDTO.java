@@ -11,6 +11,8 @@ public class NodeCriteriaDTO extends CommonCriteriaDTO {
 	private String country;
 	
 	private String ip;
+
+	private String address;
 	
 	
 	public String getCountry() {
@@ -29,6 +31,13 @@ public class NodeCriteriaDTO extends CommonCriteriaDTO {
 		this.ip = ip;
 	}
 
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
 
 	@Override
 	public Map<String, String> params() {

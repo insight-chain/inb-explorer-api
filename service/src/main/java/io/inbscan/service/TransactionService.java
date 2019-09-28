@@ -12,9 +12,11 @@ import io.inbscan.dto.transaction.TransactionCriteria;
 import io.inbscan.dto.transaction.TransactionDTO;
 import io.inbscan.dto.transaction.TransactionModel;
 import io.inbscan.dto.transaction.TransferModel;
+import io.inbscan.model.tables.pojos.Block;
 import io.inbscan.model.tables.pojos.TransactionLog;
 import io.inbscan.model.tables.records.*;
 import io.inbscan.utils.HttpUtil;
+import io.inbscan.utils.InbConvertUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -28,7 +30,6 @@ import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.PersonalUnlockAccount;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.request.Transaction;
-import org.web3j.protocol.core.methods.response.EthBlock;
 import org.web3j.protocol.core.methods.response.EthGetBalance;
 import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
@@ -42,7 +43,6 @@ import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import static io.inbscan.model.tables.Account.ACCOUNT;
@@ -92,28 +92,27 @@ public class TransactionService {
 
 	public TransactionModel getTxByHash(String hash) {
 		
-		TransactionModel result = this.dslContext.select(TRANSACTION.ID,TRANSACTION.INPUT,TRANSACTION.BINDWITH,TRANSACTION.HASH,TRANSACTION.TIMESTAMP,BLOCK.NUM.as("block"),TRANSACTION.FROM,TRANSACTION.TYPE,TRANSACTION.CONFIRMED)
+		TransactionModel result = this.dslContext.select(TRANSACTION.ID,TRANSACTION.INPUT,TRANSACTION.BINDWITH,TRANSACTION.HASH
+				,TRANSACTION.TIMESTAMP,BLOCK.NUM.as("block"),TRANSACTION.FROM,TRANSACTION.TYPE,TRANSACTION.CONFIRMED,TRANSACTION.STATUS)
 				.from(TRANSACTION)
 				.join(BLOCK).on(BLOCK.ID.eq(TRANSACTION.BLOCK_ID))
 		.where(TRANSACTION.HASH.eq(hash))
 		.fetchOneInto(TransactionModel.class);
 
 		if(result != null) {
-			double divideNumber = Math.pow(10,18);
 			List<TransactionLog> record = this.dslContext.select()
 					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(result.getHash())).fetchInto(TransactionLog.class);
 			result.setLog(record);
 
 			for (TransactionLog transactionLog : record) {
-				BigDecimal amount = new BigDecimal(transactionLog.getAmount().doubleValue()/divideNumber);
-				transactionLog.setAmount(amount.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue());
+				transactionLog.setAmount(InbConvertUtils.AmountConvert(transactionLog.getAmount()));
 			}
 
 			TransferModel transfer = this.dslContext.select(TRANSFER.TO,TRANSFER.AMOUNT)
 					.from(TRANSFER).where(TRANSFER.TRANSACTION_ID.eq(ULong.valueOf(result.getId()))).fetchOneInto(TransferModel.class);
 			result.setTo(transfer.getTo());
 //			result.setTimestamp(result.getTimestamp().substring(0,result.getTimestamp().indexOf(".")));
-			result.setAmount(transfer.getAmount()/Math.pow(10,18));
+			result.setAmount(InbConvertUtils.AmountConvert(transfer.getAmount()));
 		}
 
 
@@ -122,21 +121,12 @@ public class TransactionService {
 
 		if (result==null) {
 			TransactionModel transactionModel = new TransactionModel();
-
-			List<Object> params = new ArrayList<>();
-			params.add(hash);
-			JsonParam jsonParam = new JsonParam();
-			jsonParam.setJsonrpc("2.0");
-			jsonParam.setMethod("eth_getTransactionReceipt");
-			jsonParam.setParams(params);
-			jsonParam.setId(67L);
-			String param = JSONObject.toJSONString(jsonParam);
-			String transaction = HttpUtil.doPost(InbConstants.URL, param);
-
+			JSONObject object = inbChainService.getTransactionReceipt(hash);
+			if(object.getJSONObject("result") == null){
+				return new TransactionModel();
+			}
 			String bandwith = "0";
 			String status = "0";
-
-			JSONObject object = (JSONObject)JSONObject.parse(transaction);
 			if(object.getJSONObject("error").size() != 0){
 				return new TransactionModel();
 			}
@@ -147,45 +137,18 @@ public class TransactionService {
 			String blockNumber = object.getJSONObject("result").getString("blockNumber");
 
 
-
-			List<Object> transParams = new ArrayList<>();
-			transParams.add(hash);
-			JsonParam transJsonParam = new JsonParam();
-			transJsonParam.setId(67L);
-			transJsonParam.setJsonrpc("2.0");
-			transJsonParam.setMethod("eth_getTransactionByHash");
-			transJsonParam.setParams(transParams);
-			String transParam = JSONObject.toJSONString(transJsonParam);
-			String transResult = HttpUtil.doPost(InbConstants.URL, transParam);
-			JSONObject transObject = (JSONObject)JSONObject.parse(transResult);
+			JSONObject transObject = inbChainService.getTransInfo(hash);
 			String transValue = transObject.getJSONObject("result").getString("value");
 			String blockHash = transObject.getJSONObject("result").getString("blockHash");
 
-
-
-			List<Object> blockParams = new ArrayList<>();
-			blockParams.add(blockHash);
-			blockParams.add(true);
-			JsonParam jsonParamBlock = new JsonParam();
-			jsonParamBlock.setJsonrpc("2.0");
-			jsonParamBlock.setMethod("eth_getBlockByHash");
-			jsonParamBlock.setParams(blockParams);
-			jsonParamBlock.setId(67L);
-			String blockParam = JSONObject.toJSONString(jsonParamBlock);
-			String block = HttpUtil.doPost(InbConstants.URL, blockParam);
-			JSONObject blockObject = (JSONObject)JSONObject.parse(block);
+			JSONObject blockObject = inbChainService.getBlockByHash(blockHash);
 			String timestamp = blockObject.getJSONObject("result").getString("timestamp");
-
-			double amount  = (Numeric.decodeQuantity(transValue).doubleValue()/Math.pow(10,18));
-			BigDecimal amountResult = new BigDecimal(amount);
-			amountResult.setScale(4,BigDecimal.ROUND_HALF_UP);
-
 
 			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			transactionModel.setHash(hash);
 			transactionModel.setTimestamp(Long.valueOf(timestamp));
 			transactionModel.setBindwith(bandwith);
-			transactionModel.setAmount(amountResult.doubleValue());
+			transactionModel.setAmount(InbConvertUtils.AmountConvert(Numeric.decodeQuantity(transValue).doubleValue()));
 			transactionModel.setBlock(Long.valueOf(Numeric.decodeQuantity(blockNumber).toString()));
 			transactionModel.setFrom(from);
 			transactionModel.setTo(to);
@@ -193,41 +156,6 @@ public class TransactionService {
 
 			return transactionModel;
 		}
-		
-//		switch (result.getTypeInt()) {
-//		case ContractType.VoteWitnessContract_VALUE:
-//
-//			List<VoteModel> votes = this.dslContext.select(CONTRACT_VOTE_WITNESS.OWNER_ADDRESS.as("from"),CONTRACT_VOTE_WITNESS.VOTE_ADDRESS.as("to"),CONTRACT_VOTE_WITNESS.VOTE_COUNT.as("votes"))
-//			.from(CONTRACT_VOTE_WITNESS)
-//			.where(CONTRACT_VOTE_WITNESS.TRANSACTION_ID.eq(ULong.valueOf(result.getId())))
-//			.fetchInto(VoteModel.class);
-//
-//			result.setContract(votes);
-//
-//			break;
-//		case ContractType.TransferContract_VALUE:
-//
-//			TransferModel transferTrx = this.dslContext.select(TRANSFER.FROM,TRANSFER.TO,TRANSFER.AMOUNT)
-//			.from(TRANSFER)
-//			.where(TRANSFER.TRANSACTION_ID.eq(ULong.valueOf(result.getId())))
-//			.fetchOneInto(TransferModel.class);
-//
-//			result.setContract(transferTrx);
-//
-//			break;
-//		case ContractType.TransferAssetContract_VALUE:
-//
-//			TransferModel transferToken = this.dslContext.select(TRANSFER.FROM,TRANSFER.TO,TRANSFER.AMOUNT,TRANSFER.TOKEN)
-//			.from(TRANSFER)
-//			.where(TRANSFER.TRANSACTION_ID.eq(ULong.valueOf(result.getId())))
-//			.fetchOneInto(TransferModel.class);
-//
-//			result.setContract(transferToken);
-//
-//			break;
-//		default:
-//			break;
-//		}
 
 		return result;
 	}
@@ -275,11 +203,7 @@ public class TransactionService {
 		List<TransactionModel> items = listQuery.where(conditions).orderBy(TRANSACTION.TIMESTAMP.desc()).limit(criteria.getLimit()).offset(criteria.getOffSet()).fetchInto(TransactionModel.class);
 		List<TransactionModel> item = new ArrayList<>();
 		for(TransactionModel transactionModel:items){
-			double divideNumber = Math.pow(10,18);
-			double amount = transactionModel.getAmount();
-			BigDecimal b = new BigDecimal(amount/divideNumber);
-			double result = b.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue();
-			transactionModel.setAmount(result);
+			transactionModel.setAmount(InbConvertUtils.AmountConvert(transactionModel.getAmount()));
 //			transactionModel.setTimestamp(transactionModel.getTimestamp().substring(0,transactionModel.getTimestamp().indexOf(".")));
 
 
@@ -302,58 +226,68 @@ public class TransactionService {
 
 	public ListModel<TransactionDTO,TransactionCriteria> getTransactionsForWallet(TransactionCriteria criteria){
 		ArrayList<Condition> conditions = new ArrayList<>();
-
-		if (criteria.getAddress()!=null) {
+		long totalCount = 0;
+		if (criteria.getAddress()!=null && criteria.getTokenAddress() == null) {
 			conditions.add(TRANSACTION.ID.in(DSL.select(TRANSFER.TRANSACTION_ID).from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress()))));
+//			totalCount = this.dslContext.select(DSL.count())
+//					.from(TRANSFER)
+//					.where(TRANSFER.FROM.eq(criteria.getAddress()))
+//					.or(TRANSFER.TO.eq(criteria.getAddress())).fetchOneInto(Long.class)
+//			;
 		}
 		if(criteria.getType()!=null && criteria.getType().equals("award")) {
 			conditions.add(TRANSACTION.TYPE.eq(8).or(TRANSACTION.TYPE.eq(9)));
 		}
+		if(criteria.getTransType()!=null){
+			conditions.add(TRANSACTION.TYPE.eq(criteria.getTransType()));
+		}
+		if(criteria.getTokenAddress()!=null && criteria.getAddress() == null){
+		    conditions.add(TRANSACTION.TOKEN_ADDRESS.eq(criteria.getTokenAddress()));
+//		    totalCount = this.dslContext.select(DSL.count())
+//					.from(TRANSACTION)
+//					.where(TRANSACTION.TOKEN_NAME.eq(criteria.getToken()))
+//					.fetchOneInto(Long.class);
+        }
 
-		SelectOnConditionStep<?> listQuery = (SelectOnConditionStep<?>) this.dslContext.select(BLOCK.NUM.as("blockNumber"),BLOCK.HASH.as("blockHash"),TRANSACTION.ID,TRANSACTION.INPUT,TRANSACTION.HASH,TRANSACTION.TIMESTAMP,TRANSACTION.FROM,TRANSFER.TO,TRANSFER.AMOUNT,TRANSACTION.TYPE,TRANSACTION.CONFIRMED,TRANSACTION.BINDWITH,TRANSACTION.STATUS)
+		if(criteria.getAddress()!=null && criteria.getTokenAddress() != null){
+            conditions.add(TRANSACTION.ID.in(DSL.select(TRANSFER.TRANSACTION_ID)
+                    .from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress()))));
+            conditions.add(TRANSACTION.TOKEN_ADDRESS.eq(criteria.getTokenAddress()));
+        }
+
+
+
+		SelectOnConditionStep<?> listQuery = (SelectOnConditionStep<?>) this.dslContext.select(TRANSACTION.ID,TRANSACTION.BLOCK_ID,TRANSACTION.BLOCK_HASH,TRANSACTION.BLOCK_NUM.as("blockNumber"),TRANSACTION.INPUT,TRANSACTION.HASH,TRANSACTION.TIMESTAMP,TRANSACTION.FROM,TRANSFER.TO,TRANSFER.AMOUNT,TRANSACTION.TYPE,TRANSACTION.CONFIRMED,TRANSACTION.BINDWITH,TRANSACTION.STATUS)
 				.from(TRANSACTION)
-				.join(BLOCK).on(BLOCK.ID.eq(TRANSACTION.BLOCK_ID))
 				.join(TRANSFER).on(TRANSACTION.ID.eq(TRANSFER.TRANSACTION_ID));
 
 
-		long totalCount = 0;
-
-		if(criteria.getAddress()!=null) {
-			totalCount = this.dslContext.select(DSL.count())
-					.from(TRANSFER)
-					.where(TRANSFER.FROM.eq(criteria.getAddress()))
-					.or(TRANSFER.TO.eq(criteria.getAddress())).fetchOneInto(Long.class)
-							;
-//			totalCount = this.dslContext.select(DSL.count()).from(TRANSACTION).where(conditions).execute();
-		}else {
-			totalCount = this.dslContext.select(DSL.count()).from(TRANSACTION).fetchOneInto(Long.class);
-		}
-//		}
-
+		totalCount = listQuery.where(conditions).fetch().size();
 
 		List<TransactionDTO> items = listQuery.where(conditions).orderBy(TRANSACTION.TIMESTAMP.desc()).limit(criteria.getLimit()).offset(criteria.getOffSet()).fetchInto(TransactionDTO.class);
 		List<TransactionDTO> item = new ArrayList<>();
 		for(TransactionDTO transactionDTO:items){
-			double amount = transactionDTO.getAmount();
-			double divideNumber = Math.pow(10,18);
-			BigDecimal b = new BigDecimal(amount/divideNumber);
-			double result = b.setScale(4, BigDecimal.ROUND_HALF_UP).doubleValue();
-			transactionDTO.setAmount(result);
+			transactionDTO.setAmount(InbConvertUtils.AmountConvert(transactionDTO.getAmount()));
 
 //			transactionDTO.setTimestamp(transactionDTO.getTimestamp().substring(0,transactionDTO.getTimestamp().indexOf(".")));
 
 			//交易类型状态交易方向
-			if(transactionDTO.getFrom().equals(criteria.getAddress())){
+			if(transactionDTO.getFrom()!= null && transactionDTO.getFrom().equals(criteria.getAddress())){
 				transactionDTO.setDirection(1);
-			}else if(transactionDTO.getTo().equals(criteria.getAddress())){
+			}else if(transactionDTO.getTo()!=null && transactionDTO.getTo().equals(criteria.getAddress())){
 				transactionDTO.setDirection(2);
 			}
 
+			List<TransactionLog> record = this.dslContext.select()
+					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(transactionDTO.getHash())).fetchInto(TransactionLog.class);
 
+			transactionDTO.setTransactionLog(record);
 			transactionDTO.setStatus(Numeric.decodeQuantity(transactionDTO.getStatus()).toString());
 			transactionDTO.setBindwith(Numeric.decodeQuantity(transactionDTO.getBindwith()).toString());
 			item.add(transactionDTO);
 		}
+
+
 
 		ListModel<TransactionDTO, TransactionCriteria> result = new ListModel<TransactionDTO, TransactionCriteria>(criteria, item,totalCount);
 
@@ -532,31 +466,19 @@ public class TransactionService {
 			status = transReceipt.getJSONObject("result").getString("status");
 		}
 
-		String transInput = null;
-		int transType = 1;
-		try {
-			transInput = fromHexString(transaction.getString("input"));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		if (StringUtils.isNotBlank(transInput) && transInput.contains("mortgageNet")) {
-			transType = 2;
-		}
-		if (StringUtils.isNotBlank(transInput) && transInput.contains("unmortgageNet")) {
-			transType = 3;
-		}
-		if (StringUtils.isNotBlank(transInput) && transInput.contains("candidates")) {
-			transType = 4;
-		}
+		String transInput = fromHexString(transaction.getString("input"));
+		JSONObject transactionObject = inbChainService.getTransInfo(transHash);
 
 		TransactionRecord txRecord = this.dslContext.insertInto(TRANSACTION)
 				.set(TRANSACTION.HASH, transHash)
 				.set(TRANSACTION.TIMESTAMP, block.getTimestamp())
 				.set(TRANSACTION.FROM, transaction.getString("from"))
 				.set(TRANSACTION.BINDWITH, bandwith)
-				.set(TRANSACTION.TYPE, transType)
+				.set(TRANSACTION.TYPE, transactionObject.getJSONObject("result").getInteger("txType"))
 				.set(TRANSACTION.INPUT, transInput)
 				.set(TRANSACTION.STATUS, status)
+				.set(TRANSACTION.BLOCK_HASH,block.getHash())
+				.set(TRANSACTION.BLOCK_NUM,block.getNum())
 				.set(TRANSACTION.BLOCK_ID, block.getId()).returning()
 				.fetchOne();
 

@@ -14,56 +14,71 @@ import java.util.Optional;
 
 public class TransactionRoutes {
 
-	private TransactionService txService;
+    private TransactionService txService;
 
-	@Inject
-	public TransactionRoutes(TransactionService txService) {
-		this.txService= txService;
-	}
-	
-
-	@GET
-	@Path(ApiAppRoutePaths.V1.TRANSACTIONS)
-	public ListModel<TransactionModel, TransactionCriteria> listTransactions(Optional<Integer> block, Optional<Integer> page, Optional<Integer> limit) throws Throwable {
-		
-		TransactionCriteria criteria = new TransactionCriteria();
-		criteria.setLimit(limit.orElse(20));
-		criteria.setPage(page.orElse(1));
-		criteria.setBlock(block.orElse(null));
-		
-		return this.txService.listTransactions(criteria);
-		
-	}
+    @Inject
+    public TransactionRoutes(TransactionService txService) {
+        this.txService = txService;
+    }
 
 
-	@GET
-	@Path(ApiAppRoutePaths.V1.TRANSACTION_SEARCH)
-	public TransactionModel getTrxByHash(String hash) {
+    @GET
+    @Path(ApiAppRoutePaths.V1.TRANSACTIONS)
+    public ListModel<TransactionModel, TransactionCriteria> listTransactions(Optional<Integer> block, Optional<Integer> page, Optional<Integer> limit) throws Throwable {
 
-		TransactionCriteria criteria = new TransactionCriteria();
-		criteria.setHash(hash);
-		return this.txService.getTxByHash(criteria.getHash());
+        TransactionCriteria criteria = new TransactionCriteria();
+        criteria.setLimit(limit.orElse(20));
+        criteria.setPage(page.orElse(1));
+        criteria.setBlock(block.orElse(null));
 
-	}
+        return this.txService.listTransactions(criteria);
+
+    }
 
 
-	@GET
-	@Path(ApiAppRoutePaths.V1.TRANSACTIONS_WALLET)
-	public ListModel<TransactionDTO,TransactionCriteria> listTransactionsWallet(Optional<String> address, Optional<Integer> page, Optional<Integer> limit) {
+    @GET
+    @Path(ApiAppRoutePaths.V1.TRANSACTION_SEARCH)
+    public TransactionModel getTrxByHash(String hash) {
 
-		TransactionCriteria criteria = new TransactionCriteria();
-		criteria.setLimit(limit.orElse(20));
-		criteria.setPage(page.orElse(1));
-		criteria.setAddress(address.orElse(null));
-		return this.txService.getTransactionsForWallet(criteria);
+        TransactionCriteria criteria = new TransactionCriteria();
+        criteria.setHash(hash);
+        return this.txService.getTxByHash(criteria.getHash());
 
-	}
+    }
+
+
+    @GET
+    @Path(ApiAppRoutePaths.V1.TRANSACTIONS_WALLET)
+    public ListModel<TransactionDTO, TransactionCriteria> listTransactionsWallet(Optional<String> address, Optional<String> tokenAddress,Optional<Integer> page, Optional<Integer> limit) {
+
+        TransactionCriteria criteria = new TransactionCriteria();
+        criteria.setLimit(limit.orElse(20));
+        criteria.setPage(page.orElse(1));
+        criteria.setAddress(address.orElse(null));
+        criteria.setTokenAddress(tokenAddress.orElse(null));
+        return this.txService.getTransactionsForWallet(criteria);
+
+    }
+
+    //领奖记录
+    @GET
+    @Path(ApiAppRoutePaths.V1.TRANSACTION_AWARD_RECORD)
+    public ListModel<TransactionDTO, TransactionCriteria> listAwardRecord(Optional<String> address, Optional<Integer> page, Optional<Integer> limit) {
+        TransactionCriteria criteria = new TransactionCriteria();
+        criteria.setLimit(limit.orElse(20));
+        criteria.setPage(page.orElse(1));
+        criteria.setAddress(address.orElse(null));
+        criteria.setType("award");
+        return this.txService.getTransactionsForWallet(criteria);
+
+    }
 
     @GET
     @Path(ApiAppRoutePaths.V1.TRANSACTION_SEND)
     public String sendTransaction(String toAddress) {
 
-         return this.txService.sendTransaction(toAddress);
+        return this.txService.sendTransaction(toAddress);
 
     }
+
 }

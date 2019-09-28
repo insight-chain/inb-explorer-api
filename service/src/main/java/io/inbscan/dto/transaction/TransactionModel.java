@@ -1,6 +1,10 @@
 package io.inbscan.dto.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.inbscan.model.tables.pojos.TransactionLog;
+
+
+import java.util.List;
 
 /**
  * @author nicholas
@@ -23,7 +27,7 @@ public class TransactionModel {
 
 	private double amount;
 	
-	private String timestamp;
+	private Long timestamp;
 	
 	private boolean confirmed;
 	
@@ -34,6 +38,8 @@ public class TransactionModel {
 	private String status;
 
 	private String input;
+
+	private List<TransactionLog> log;
 
 
 	
@@ -88,11 +94,11 @@ public class TransactionModel {
 		this.block = block;
 	}
 
-	public String getTimestamp() {
+	public Long getTimestamp() {
 		return timestamp;
 	}
 
-	public void setTimestamp(String timestamp) {
+	public void setTimestamp(Long timestamp) {
 		this.timestamp = timestamp;
 	}
 
@@ -146,5 +152,13 @@ public class TransactionModel {
 
 	public void setInput(String input) {
 		this.input = input;
+	}
+
+	public List<TransactionLog> getLog() {
+		return log;
+	}
+
+	public void setLog(List<TransactionLog> log) {
+		this.log = log;
 	}
 }

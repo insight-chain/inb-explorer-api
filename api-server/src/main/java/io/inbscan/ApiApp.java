@@ -16,6 +16,7 @@ public class ApiApp extends Jooby {
 
 	{
 
+
 		use(new Jdbc());
 		use(new jOOQ());
 
@@ -35,7 +36,7 @@ public class ApiApp extends Jooby {
 				res.send(true);
 				return;
 			}
-			
+
 			
 			chain.next(req, res);
 
