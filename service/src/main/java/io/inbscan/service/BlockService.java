@@ -9,9 +9,9 @@ import io.inbscan.dto.*;
 import io.inbscan.dto.block.BlockChainDto;
 import io.inbscan.dto.block.BlockCriteriaDTO;
 import io.inbscan.dto.block.BlockDTO;
+import io.inbscan.dto.node.Node;
 import io.inbscan.dto.node.NodeCriteriaDTO;
 import io.inbscan.exception.ServiceException;
-import io.inbscan.model.tables.pojos.Node;
 import io.inbscan.model.tables.records.BlockChainRecord;
 import io.inbscan.model.tables.records.BlockRecord;
 import io.inbscan.utils.HttpUtil;
@@ -128,16 +128,19 @@ public class BlockService {
 		BigInteger irreversibleBlockNum = inbChainService.getConfirmedBlockNumber();
 
 		//INB总供应量
-		BigInteger totalINB = inbChainService.getAccountInfo(InbConstants.INBTOTALSUPPLY).getJSONObject("result").getBigInteger("Balance");
+//		BigInteger totalINB = inbChainService.getAccountInfo(InbConstants.INBTOTALSUPPLY).getJSONObject("result").getBigInteger("Balance");
+		Double totalINB = 100000000000d;
 
 		//当前为net抵押INB数量
-		BigInteger mortgagteINB = inbChainService.getAccountInfo(InbConstants.MORTGAGENETINB).getJSONObject("result").getBigInteger("Balance");
-		if(mortgagteINB == null){
-			mortgagteINB = new BigInteger("0");
+		JSONObject account  = inbChainService.getAccountInfo(InbConstants.MORTGAGENETINB);
+		Double mortgageINB =0d;
+		if(account.getJSONObject("result") != null){
+			mortgageINB = account.getJSONObject("result").getLong("Balance").doubleValue();
 		}
 
-
-
+        //获取流通量
+        String circulation = inbChainService.getLiquidity();
+        String currentNetConsume = block.getJSONObject("result").getString("resUsed");
 		BlockChainRecord blockChainRecord = this.dslContext.select(BLOCK_CHAIN.ID).from(BLOCK_CHAIN).fetchOneInto(BlockChainRecord.class);
 		if(blockChainRecord == null){
 			blockChainRecord = this.dslContext.insertInto(BLOCK_CHAIN)
@@ -146,8 +149,10 @@ public class BlockService {
 					.set(BLOCK_CHAIN.CURRENT_TPS,currentTps)
 //					.set(BLOCK_CHAIN.ADDRESS_NUM,block.getTransactions())
 //					.set(BLOCK_CHAIN.HIGHEST_TPS,currentTps)
-					.set(BLOCK_CHAIN.INB_TOTAL_SUPPLY,totalINB.doubleValue())
-					.set(BLOCK_CHAIN.MORTGAGE_NET_INB,mortgagteINB.doubleValue())
+					.set(BLOCK_CHAIN.INB_TOTAL_SUPPLY,totalINB)
+					.set(BLOCK_CHAIN.MORTGAGE_NET_INB,mortgageINB)
+					.set(BLOCK_CHAIN.CURRENT_NET_CONSUMED,Numeric.decodeQuantity(currentNetConsume).intValue())
+                    .set(BLOCK_CHAIN.INB_CIRCULATION,Double.valueOf(circulation))
 					.returning(BLOCK_CHAIN.ID)
 					.fetchOne();
 
@@ -167,8 +172,10 @@ public class BlockService {
 					.set(BLOCK_CHAIN.CURRENT_TPS,currentTps)
 //					.set(BLOCK_CHAIN.ADDRESS_NUM,block.getTransactions())
 					.set(BLOCK_CHAIN.HIGHEST_TPS,highestTps)
-					.set(BLOCK_CHAIN.INB_TOTAL_SUPPLY,totalINB.doubleValue())
-					.set(BLOCK_CHAIN.MORTGAGE_NET_INB,mortgagteINB.doubleValue())
+					.set(BLOCK_CHAIN.INB_TOTAL_SUPPLY,totalINB)
+					.set(BLOCK_CHAIN.MORTGAGE_NET_INB,mortgageINB)
+					.set(BLOCK_CHAIN.CURRENT_NET_CONSUMED,Numeric.decodeQuantity(currentNetConsume).intValue())
+					.set(BLOCK_CHAIN.INB_CIRCULATION,Double.valueOf(circulation))
 					.where(BLOCK_CHAIN.ID.eq(blockChainRecord.getId()))
 					.execute();
 		}
@@ -225,10 +232,11 @@ public class BlockService {
 		return blockNumber;
 	}
 
-	public BlockDTO getLastBlock() {
+	public Long getLastBlock() {
 
-		return this.dslContext.select(BLOCK.NUM,BLOCK.HASH,BLOCK.TIMESTAMP,BLOCK.TX_COUNT,BLOCK.SIZE,BLOCK.PARENT_HASH,BLOCK.WITNESS_ADDRESS)
-				.from(BLOCK).orderBy(BLOCK.NUM.desc()).limit(1).fetchOneInto(BlockDTO.class);
+		return this.dslContext.select(BLOCK.NUM)
+				.from(BLOCK).orderBy(BLOCK.NUM.desc()).limit(1).fetchOneInto(Long.class);
+//        return inbChainService.getLatestBlockNumber().longValue();
 
 	}
 
@@ -249,8 +257,14 @@ public class BlockService {
 
 		BlockDTO block=this.dslContext.select(BLOCK.ID,BLOCK.NUM,BLOCK.HASH,BLOCK.TIMESTAMP,BLOCK.TX_COUNT,BLOCK.SIZE,BLOCK.PARENT_HASH,BLOCK.REWARD,BLOCK.TX_COUNT).from(BLOCK).where(BLOCK.NUM.eq(ULong.valueOf(num))).fetchOneInto(BlockDTO.class);
 
-		block.setReward(InbConvertUtils.AmountConvert(block.getReward()));
+		if(block!=null) {
+			block.setReward(InbConvertUtils.AmountConvert(block.getReward()));
+		}
 //		block.setTimestamp(block.getTimestamp().substring(0,block.getTimestamp().indexOf(".")));
+
+		if(block == null){
+			return new BlockDTO();
+		}
 
 		return block;
 	}
@@ -355,8 +369,8 @@ public class BlockService {
 
 		//TODO 开源时换掉此代码
 //		BigDecimal inbTotalSupply = new BigDecimal(blockChainDto.getLatestBlockNum()*6.34);
-		blockChainDto.setInbTotalSupply(1000000000d);
-//
+		blockChainDto.setInbTotalSupply(10000000000d);
+		blockChainDto.setInbCirculation(InbConvertUtils.AmountConvert(blockChainDto.getInbCirculation()));
 //		BigDecimal mortgageInb = new BigDecimal(inbTotalSupply.multiply(new BigDecimal(0.3)).doubleValue());
 		blockChainDto.setMortgageNetInb(InbConvertUtils.AmountConvert(blockChainDto.getMortgageNetInb()));
 		return blockChainDto;

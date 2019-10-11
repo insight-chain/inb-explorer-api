@@ -20,21 +20,54 @@ public class Accountdto {
 
     private Integer nonce;
 
+    /**
+     * 锁仓数量
+     */
     private Double regular;
 
+    /**
+     * 赎回
+     */
     private Double redeemValue;
 
+    /**
+     * 赎回所在块高度
+     */
     private Long redeemStartHeight;
 
+    /**
+     * 投票数量
+     */
     private Long voteNumber;
 
+    /**
+     * 上次领取投票奖励块尕殴打
+     */
     private Long lastReceiveVoteAwardHeight;
 
+    /**
+     * 资源相关
+     * used 已使用资源
+     * mortgage 抵押
+     * usable 可使用资源
+     * height 抵押所在块高度
+     */
     private ResDTO res;
 
+    /**
+     * 锁仓
+     *
+     */
     private List<StoreDTO> store;
 
+    /**
+     * 代币
+     */
     private List<TokenDTO> token;
+
+    private Boolean bstop;
+
+    private Integer resTotal;
 
 
     public Long getId() {
@@ -131,5 +164,21 @@ public class Accountdto {
 
     public void setToken(List<TokenDTO> token) {
         this.token = token;
+    }
+
+    public Boolean getBstop() {
+        return bstop;
+    }
+
+    public void setBstop(Boolean bstop) {
+        this.bstop = bstop;
+    }
+
+    public Integer getResTotal() {
+        return resTotal;
+    }
+
+    public void setResTotal(Integer resTotal) {
+        this.resTotal = resTotal;
     }
 }

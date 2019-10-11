@@ -8,11 +8,14 @@ import io.inbscan.chain.InbChainService;
 import io.inbscan.constants.InbConstants;
 import io.inbscan.dto.JsonParam;
 import io.inbscan.dto.ListModel;
+import io.inbscan.dto.account.*;
 import io.inbscan.dto.transaction.TransactionCriteria;
 import io.inbscan.dto.transaction.TransactionDTO;
 import io.inbscan.dto.transaction.TransactionModel;
 import io.inbscan.dto.transaction.TransferModel;
 import io.inbscan.model.tables.pojos.Block;
+import io.inbscan.model.tables.pojos.Store;
+import io.inbscan.model.tables.pojos.TokenHolder;
 import io.inbscan.model.tables.pojos.TransactionLog;
 import io.inbscan.model.tables.records.*;
 import io.inbscan.utils.HttpUtil;
@@ -48,7 +51,10 @@ import java.util.List;
 import static io.inbscan.model.tables.Account.ACCOUNT;
 import static io.inbscan.model.tables.Block.BLOCK;
 import static io.inbscan.model.tables.BlockChain.BLOCK_CHAIN;
+import static io.inbscan.model.tables.Store.STORE;
 import static io.inbscan.model.tables.SyncAccount.SYNC_ACCOUNT;
+import static io.inbscan.model.tables.Token.TOKEN;
+import static io.inbscan.model.tables.TokenHolder.TOKEN_HOLDER;
 import static io.inbscan.model.tables.Transaction.TRANSACTION;
 import static io.inbscan.model.tables.TransactionLog.TRANSACTION_LOG;
 import static io.inbscan.model.tables.Transfer.TRANSFER;
@@ -81,16 +87,16 @@ public class TransactionService {
 
 	
 	@Inject
-	public TransactionService(DSLContext dslContext, InbChainService inbChainService) {
+	public TransactionService(DSLContext dslContext, InbChainService inbChainService ){
 
-		this.dslContext  = dslContext;
+		this.dslContext = dslContext;
 		this.inbChainService = inbChainService;
 	}
 	
 
 	
 
-	public TransactionModel getTxByHash(String hash) {
+	public TransactionModel getTxByHash(String hash) throws Exception{
 		
 		TransactionModel result = this.dslContext.select(TRANSACTION.ID,TRANSACTION.INPUT,TRANSACTION.BINDWITH,TRANSACTION.HASH
 				,TRANSACTION.TIMESTAMP,BLOCK.NUM.as("block"),TRANSACTION.FROM,TRANSACTION.TYPE,TRANSACTION.CONFIRMED,TRANSACTION.STATUS)
@@ -113,6 +119,17 @@ public class TransactionService {
 			result.setTo(transfer.getTo());
 //			result.setTimestamp(result.getTimestamp().substring(0,result.getTimestamp().indexOf(".")));
 			result.setAmount(InbConvertUtils.AmountConvert(transfer.getAmount()));
+			result.setInput(InbConvertUtils.fromHexString(result.getInput()));
+			if(result.getType() == 3){
+				Accountdto accountdto = this.getActByAddress(record.get(0).getFrom());
+				List<StoreDTO> storeDTOS = accountdto.getStore();
+				for (StoreDTO storeDTO : storeDTOS) {
+					if(storeDTO.getHash().equals(hash)){
+						result.setLockHeight(storeDTO.getLockHeight());
+						result.setMortgage(storeDTO.getAmount());
+					}
+				}
+			}
 		}
 
 
@@ -161,6 +178,53 @@ public class TransactionService {
 	}
 
 
+	public Accountdto getActByAddress(String address) throws Exception {
+
+		Accountdto result = this.dslContext.select(ACCOUNT.ID, ACCOUNT.ADDRESS, ACCOUNT.MORTGAGE, ACCOUNT.NONCE, ACCOUNT.BALANCE, ACCOUNT.USED.as("used"),
+				ACCOUNT.USABLE.as("usable"), ACCOUNT.REGULAR.as("regular"), ACCOUNT.REDEEM.as("redeemValue"), ACCOUNT.REDEEM_START_HEIGHT, ACCOUNT.VOTE_NUMBER,
+				ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT)
+				.from(ACCOUNT).where(ACCOUNT.ADDRESS.eq(address)).fetchOneInto(Accountdto.class);
+		if (result == null) {
+			return new Accountdto();
+		}
+
+		List<Store> stores = this.dslContext.select().from(STORE).where(STORE.ADDRESS.eq(address)).fetchInto(io.inbscan.model.tables.pojos.Store.class);
+		List<StoreDTO> storeDTOS = new ArrayList<>();
+		for (Store store : stores) {
+			StoreDTO storeDTO = new StoreDTO();
+			storeDTO.setStartHeight(store.getStartHeight());
+			storeDTO.setId(store.getId());
+			storeDTO.setAddress(store.getAddress());
+			storeDTO.setLastReceivedHeight(store.getLastReceivedHeight());
+			storeDTO.setLockHeight(store.getLockHeight());
+			storeDTO.setReceived(InbConvertUtils.AmountConvert(Double.valueOf(store.getReceived())));
+			storeDTO.setAmount(InbConvertUtils.AmountConvert(Double.valueOf(store.getAmount().toString())));
+			storeDTO.setHash(store.getHash());
+			storeDTOS.add(storeDTO);
+		}
+
+		List<TokenDTO> tokenDTOS = new ArrayList<>();
+		List<TokenHolder> tokenHolders = this.dslContext.select().from(TOKEN_HOLDER).where(TOKEN_HOLDER.HOLDER_ADDRESS.eq(address)).fetchInto(TokenHolder.class);
+		for (TokenHolder tokenHolder : tokenHolders) {
+			TokenDTO tokenDTO = new TokenDTO();
+			Token token = this.dslContext.select().from(TOKEN).where(TOKEN.ADDRESS.eq(tokenHolder.getTokenAddress())).fetchOneInto(Token.class);
+			tokenDTO.setIcon(token.getIcon());
+			tokenDTO.setSymbol(token.getSymbol());
+			tokenDTOS.add(tokenDTO);
+		}
+		ResDTO resDTO = this.dslContext.select(ACCOUNT.MORTGAGE,ACCOUNT.USABLE,ACCOUNT.USED,ACCOUNT.MORTGAGE_HEIGHT.as("height")).from(ACCOUNT).where(ACCOUNT.ADDRESS.eq(address)).fetchOneInto(ResDTO.class);
+		resDTO.setMortgage(InbConvertUtils.AmountConvert(resDTO.getMortgage()));
+		result.setRes(resDTO);
+		result.setBalance(InbConvertUtils.AmountConvert(result.getBalance()));
+		result.setRedeemValue(InbConvertUtils.AmountConvert(result.getRedeemValue()));
+		result.setRegular(InbConvertUtils.AmountConvert(result.getRegular()));
+//        result.setUsed(InbConvertUtils.AmountConvert(result.getUsed()));
+		result.setStore(storeDTOS);
+		result.setToken(tokenDTOS);
+		return result;
+	}
+
+
 	public ListModel<TransactionModel, TransactionCriteria> listTransactions(TransactionCriteria criteria) {
 
 		ArrayList<Condition> conditions = new ArrayList<>();
@@ -172,7 +236,7 @@ public class TransactionService {
 //		conditions.add(TRANSACTION.FROM.isNotNull());
 
 		if (criteria.getBlock()!=null) {
-			conditions.add(TRANSACTION.BLOCK_ID.in(DSL.select(BLOCK.ID).from(BLOCK).where(BLOCK.ID.eq(ULong.valueOf(criteria.getBlock())))));
+			conditions.add(TRANSACTION.BLOCK_NUM.in(DSL.select(BLOCK.NUM).from(BLOCK).where(BLOCK.NUM.eq(ULong.valueOf(criteria.getBlock())))));
 		}
 //		else {
 //			conditions.add(DSL.year(TRANSACTION.TIMESTAMP).lt(DSL.year(DSL.currentDate()).plus(1)));
@@ -191,7 +255,7 @@ public class TransactionService {
 		if(criteria.getBlock()!=null) {
 			totalCount = this.dslContext.select(DSL.count())
 					.from(TRANSACTION)
-					.where(TRANSACTION.BLOCK_ID.eq(ULong.valueOf(criteria.getBlock())))
+					.where(TRANSACTION.BLOCK_NUM.eq(ULong.valueOf(criteria.getBlock())))
 					.fetchOneInto(Long.class);
 //			totalCount = this.dslContext.select(DSL.count()).from(TRANSACTION).where(conditions).execute();
 		}else {
@@ -204,6 +268,7 @@ public class TransactionService {
 		List<TransactionModel> item = new ArrayList<>();
 		for(TransactionModel transactionModel:items){
 			transactionModel.setAmount(InbConvertUtils.AmountConvert(transactionModel.getAmount()));
+			transactionModel.setInput(InbConvertUtils.fromHexString(transactionModel.getInput()));
 //			transactionModel.setTimestamp(transactionModel.getTimestamp().substring(0,transactionModel.getTimestamp().indexOf(".")));
 
 
@@ -282,8 +347,8 @@ public class TransactionService {
 					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(transactionDTO.getHash())).fetchInto(TransactionLog.class);
 
 			transactionDTO.setTransactionLog(record);
-			transactionDTO.setStatus(Numeric.decodeQuantity(transactionDTO.getStatus()).toString());
 			transactionDTO.setBindwith(Numeric.decodeQuantity(transactionDTO.getBindwith()).toString());
+			transactionDTO.setInput(InbConvertUtils.fromHexString(transactionDTO.getInput()));
 			item.add(transactionDTO);
 		}
 
@@ -294,34 +359,6 @@ public class TransactionService {
 		return result;
 	}
 
-
-	public  String fromHexString(String hexString) {
-		// 用于接收转换结果
-		String result = "";
-		// 转大写
-		hexString = hexString.replaceAll("0x","");
-		hexString = hexString.toUpperCase();
-		// 16进制字符
-		String hexDigital = "0123456789ABCDEF";
-		// 将16进制字符串转换成char数组
-		char[] hexs = hexString.toCharArray();
-		// 能被16整除，肯定可以被2整除
-		byte[] bytes = new byte[hexString.length() / 2];
-		int n;
-
-		for (int i = 0; i < bytes.length; i++) {
-			n = hexDigital.indexOf(hexs[2 * i]) * 16 + hexDigital.indexOf(hexs[2 * i + 1]);
-			bytes[i] = (byte) (n & 0xff);
-		}
-		// byte[]--&gt;String
-		try {
-			result = new String(bytes, "UTF-8");
-		}catch (Exception e){
-			e.printStackTrace();
-		}
-
-		return result;
-	}
 
 	/**
 	 * 获取余额
@@ -462,11 +499,11 @@ public class TransactionService {
 		String bandwith = "0";
 		String status = "0";
 		if (transReceipt!=null) {
-			bandwith = transReceipt.getJSONObject("result").getString("cumulativeResUsed");
+			bandwith = transReceipt.getJSONObject("result").getString("resUsed");
 			status = transReceipt.getJSONObject("result").getString("status");
 		}
 
-		String transInput = fromHexString(transaction.getString("input"));
+//		String transInput = InbConvertUtils.fromHexString(transaction.getString("input"));
 		JSONObject transactionObject = inbChainService.getTransInfo(transHash);
 
 		TransactionRecord txRecord = this.dslContext.insertInto(TRANSACTION)
@@ -475,7 +512,7 @@ public class TransactionService {
 				.set(TRANSACTION.FROM, transaction.getString("from"))
 				.set(TRANSACTION.BINDWITH, bandwith)
 				.set(TRANSACTION.TYPE, transactionObject.getJSONObject("result").getInteger("txType"))
-				.set(TRANSACTION.INPUT, transInput)
+				.set(TRANSACTION.INPUT, transaction.getString("input"))
 				.set(TRANSACTION.STATUS, status)
 				.set(TRANSACTION.BLOCK_HASH,block.getHash())
 				.set(TRANSACTION.BLOCK_NUM,block.getNum())
@@ -496,19 +533,17 @@ public class TransactionService {
 		}
 
 
-		//当前消耗net
-		BigInteger currentNetConsume = Numeric.decodeQuantity(bandwith);
-		Integer netLimit = 0;
+//		//当前消耗net
+//		BigInteger currentNetConsume = Numeric.decodeQuantity(bandwith);
+//		Integer netLimit = 0;
 		BlockChainRecord blockChainRecord = this.dslContext.select().from(BLOCK_CHAIN).fetchOneInto(BlockChainRecord.class);
-		if(blockChainRecord.getNetLimit()<currentNetConsume.intValue() || blockChainRecord.getNetLimit()==currentNetConsume.intValue()){
-			netLimit = currentNetConsume.intValue();
-		}else if(blockChainRecord.getNetLimit()>currentNetConsume.intValue()) {
-			netLimit = blockChainRecord.getNetLimit();
-		}
+//		if(blockChainRecord.getNetLimit()<currentNetConsume.intValue() || blockChainRecord.getNetLimit()==currentNetConsume.intValue()){
+//			netLimit = currentNetConsume.intValue();
+//		}else if(blockChainRecord.getNetLimit()>currentNetConsume.intValue()) {
+//			netLimit = blockChainRecord.getNetLimit();
+//		}
 		this.dslContext.update(BLOCK_CHAIN)
 				.set(BLOCK_CHAIN.TRANSACTION_NUM, BLOCK_CHAIN.TRANSACTION_NUM.add(1))
-				.set(BLOCK_CHAIN.CURRENT_NET_CONSUMED,currentNetConsume.intValue())
-				.set(BLOCK_CHAIN.NET_LIMIT,netLimit)
 				.where(BLOCK_CHAIN.ID.eq(blockChainRecord.getId()))
 				.execute();
 

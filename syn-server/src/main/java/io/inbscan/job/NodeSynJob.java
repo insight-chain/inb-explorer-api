@@ -20,7 +20,7 @@ public class NodeSynJob {
 		this.config = config;
 	}
 //
-	@Scheduled("1s")
+	@Scheduled("5s")
 	public void addNewNodes() throws InterruptedException{
 
 		if (!this.config.isNodesJobEnabled()) {

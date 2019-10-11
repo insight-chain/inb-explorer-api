@@ -55,7 +55,7 @@ public interface ApiAppRoutePaths {
 		public static final String BLOCK = VERSION+"/block";
 		public static final String BLOCK_INFO = VERSION+"/block/info";
 		public static final String BLOCK_LIST = VERSION+"/blocks";
-		public static final String BLOCK_LATEST = BLOCK+"/latest";
+		public static final String BLOCK_LATEST = BLOCK+"/latestHeight";
 		public static final String BLOCK_CREATE = BLOCK+"/create";
 		public static final String BLOCK_SEARCH = BLOCK+"/search";
 		public static final String BLOCK_SEARCH_TRANSFERS = BLOCK+"/search/transfers";

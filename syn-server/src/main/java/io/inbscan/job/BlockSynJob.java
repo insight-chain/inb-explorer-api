@@ -48,7 +48,7 @@ public class BlockSynJob {
 		this.synBlock.syncNodeBlocks();
 	}
 
-	@Scheduled("3000ms")
+	@Scheduled("2000ms")
 	public void syncFullNodeBlocks() throws ServiceException {
 		
 		if (!this.config.isBlockJobEnabled()) {

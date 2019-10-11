@@ -5,8 +5,8 @@ import io.inbscan.dto.ListModel;
 import io.inbscan.dto.block.BlockChainDto;
 import io.inbscan.dto.block.BlockCriteriaDTO;
 import io.inbscan.dto.block.BlockDTO;
+import io.inbscan.dto.node.Node;
 import io.inbscan.dto.node.NodeCriteriaDTO;
-import io.inbscan.model.tables.pojos.Node;
 import io.inbscan.service.BlockService;
 import org.jooby.Request;
 import org.jooby.Response;
@@ -34,10 +34,9 @@ public class BlockRoutes {
 	 */
 	@GET
 	@Path(ApiAppRoutePaths.V1.BLOCK_LATEST)
-	public BlockDTO broadcastTransaction(Request req, Response res) throws Throwable {
-		req.param("toto");
+	public Long lastHeight(Request req, Response res) throws Throwable {
 	    
-		return this.blockService.getLastBlock();
+		return this.blockService.getlastNumber();
 		
 	}
 
@@ -76,7 +75,7 @@ public class BlockRoutes {
 
 	@GET
 	@Path(ApiAppRoutePaths.V1.NODE_INFO)
-	public ListModel<Node, NodeCriteriaDTO> NodeInfo(Optional<Integer> page, Optional<Integer> limit,Optional<String> address){
+	public ListModel<Node, NodeCriteriaDTO> NodeInfo(Optional<Integer> page, Optional<Integer> limit, Optional<String> address){
 		NodeCriteriaDTO criteria = new NodeCriteriaDTO();
 		criteria.setLimit(limit.orElse(200));
 		criteria.setPage(page.orElse(1));

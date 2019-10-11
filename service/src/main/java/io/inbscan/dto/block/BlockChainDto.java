@@ -10,6 +10,7 @@ public class BlockChainDto {
     private Integer currentTps;
     private Integer highestTps;
     private Double  inbTotalSupply;
+    private Double  inbCirculation;
     private Double  votedInb;
     private Double  mortgageNetInb;
     private Integer totalNet;
@@ -244,5 +245,13 @@ public class BlockChainDto {
 
     public void setNodeNum(Integer nodeNum) {
         this.nodeNum = nodeNum;
+    }
+
+    public Double getInbCirculation() {
+        return inbCirculation;
+    }
+
+    public void setInbCirculation(Double inbCirculation) {
+        this.inbCirculation = inbCirculation;
     }
 }

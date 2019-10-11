@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>syn-server</artifactId>
+    <artifactId>synServer</artifactId>
 
 
 

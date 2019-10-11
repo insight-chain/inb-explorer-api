@@ -38,7 +38,7 @@ public class TransactionRoutes {
 
     @GET
     @Path(ApiAppRoutePaths.V1.TRANSACTION_SEARCH)
-    public TransactionModel getTrxByHash(String hash) {
+    public TransactionModel getTrxByHash(String hash) throws Exception {
 
         TransactionCriteria criteria = new TransactionCriteria();
         criteria.setHash(hash);

@@ -15,6 +15,7 @@ import io.inbscan.model.tables.pojos.TokenHolder;
 import io.inbscan.model.tables.pojos.Transaction;
 import io.inbscan.model.tables.records.AccountRecord;
 import io.inbscan.utils.InbConvertUtils;
+import jnr.ffi.annotations.In;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.jooq.*;
 import org.jooq.impl.DSL;
@@ -75,16 +76,16 @@ public class AccountService {
 
         JSONObject object = inbChainService.getAccountInfo(address);
         Integer nonce = object.getJSONObject("result").getInteger("Nonce");
-        Long mortgageINB = object.getJSONObject("result").getJSONObject("Res").getLong("Mortgage");
+        Long mortgageINB = object.getJSONObject("result").getJSONObject("Res").getLong("StakingValue");
         Long mortgageHeight = object.getJSONObject("result").getJSONObject("Res").getLong("Height");
         Long usable = object.getJSONObject("result").getJSONObject("Res").getLong("Usable");
         Long used = object.getJSONObject("result").getJSONObject("Res").getLong("Used");
         BigInteger balance = object.getJSONObject("result").getBigInteger("Balance");
-        BigInteger regular = object.getJSONObject("result").getBigInteger("Regular");
-        Long redeemStartHeight = JSONArray.parseObject(object.getJSONObject("result").getJSONArray("Redeems").get(0).toString()).getLong("StartHeight");
-        BigInteger redeemValue = JSONArray.parseObject(object.getJSONObject("result").getJSONArray("Redeems").get(0).toString()).getBigInteger("Value");
+        BigInteger regular = new BigInteger("0");
+        Integer redeemStartHeight = object.getJSONObject("result").getJSONObject("UnStaking").getInteger("StartHeight");
+        Integer redeemValue = object.getJSONObject("result").getJSONObject("UnStaking").getInteger("Value");
         Long voteNumber = object.getJSONObject("result").getLong("Voted");
-        Long lastReceiveVoteAwardHeight = object.getJSONObject("result").getLong("LastReceiveVoteAwardHeight");
+        Integer lastReceiveVoteAwardHeight = object.getJSONObject("result").getInteger("LastReceivedVoteRewardHeight");
 
         AccountRecord record = this.dslContext.select(ACCOUNT.ID)
                 .from(ACCOUNT).where(ACCOUNT.ADDRESS.eq(address)).fetchOneInto(AccountRecord.class);
@@ -104,10 +105,10 @@ public class AccountService {
                     .set(ACCOUNT.MORTGAGE, mortgageINB.doubleValue())
                     .set(ACCOUNT.MORTGAGE_HEIGHT,mortgageHeight)
                     .set(ACCOUNT.REGULAR, regular.doubleValue())
-                    .set(ACCOUNT.REDEEM_START_HEIGHT, redeemStartHeight)
+                    .set(ACCOUNT.REDEEM_START_HEIGHT, redeemStartHeight.longValue())
                     .set(ACCOUNT.REDEEM, redeemValue.doubleValue())
                     .set(ACCOUNT.VOTE_NUMBER, voteNumber)
-                    .set(ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT, lastReceiveVoteAwardHeight)
+                    .set(ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT, lastReceiveVoteAwardHeight.longValue())
                     .returning(ACCOUNT.ID)
                     .fetchOne();
 
@@ -127,10 +128,10 @@ public class AccountService {
                     .set(ACCOUNT.MORTGAGE, mortgageINB.doubleValue())
                     .set(ACCOUNT.MORTGAGE_HEIGHT,mortgageHeight)
                     .set(ACCOUNT.REGULAR, regular.doubleValue())
-                    .set(ACCOUNT.REDEEM_START_HEIGHT, redeemStartHeight)
+                    .set(ACCOUNT.REDEEM_START_HEIGHT, redeemStartHeight.longValue())
                     .set(ACCOUNT.REDEEM, redeemValue.doubleValue())
                     .set(ACCOUNT.VOTE_NUMBER, voteNumber)
-                    .set(ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT, lastReceiveVoteAwardHeight)
+                    .set(ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT, lastReceiveVoteAwardHeight.longValue())
                     .set(ACCOUNT.TRANSFER_TO_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.TO.eq(address)))
                     .set(ACCOUNT.TRANSFER_FROM_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.FROM.eq(address)))
                     .where(ACCOUNT.ID.eq(record.getId()))
@@ -138,7 +139,7 @@ public class AccountService {
         }
 
         //增加账户锁仓信息
-        JSONArray storeArray = inbChainService.getAccountInfo(address).getJSONObject("result").getJSONArray("Stores");
+        JSONArray storeArray = inbChainService.getAccountInfo(address).getJSONObject("result").getJSONArray("Stakings");
 
         if (storeArray != null & storeArray.size() != 0) {
             List<StoreDTO> store = this.dslContext.select().from(STORE).where(STORE.ADDRESS.eq(address)).fetchInto(StoreDTO.class);
@@ -281,6 +282,8 @@ public class AccountService {
 //        result.setUsed(InbConvertUtils.AmountConvert(result.getUsed()));
         result.setStore(storeDTOS);
         result.setToken(tokenDTOS);
+        result.setBstop(false);
+        result.setResTotal(2);
         return result;
     }
 
@@ -341,28 +344,34 @@ public class AccountService {
         fields.add(TRANSACTION.BLOCK_ID);
         fields.add(TRANSACTION.TYPE);
         fields.add(TRANSACTION.STATUS);
+        fields.add(TRANSACTION.BINDWITH);
 
         SelectJoinStep<?> listQuery = this.dslContext.select(fields)
                 .from(TRANSACTION)
-                .join(TRANSFER).on(TRANSFER.TRANSACTION_ID.eq(TRANSACTION.ID)).and((TRANSFER.FROM.eq(criteria.getAddress())));
+                .join(TRANSFER).on(TRANSFER.TRANSACTION_ID.eq(TRANSACTION.ID)).and((TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress())));
 
 
         Integer totalCount = null;
-
-        if (!criteria.isTrx()) {
-            totalCount = this.dslContext.select(ACCOUNT.TRANSFER_FROM_COUNT)
-                    .from(ACCOUNT)
-                    .where(ACCOUNT.ADDRESS.eq(criteria.getAddress()))
-                    .fetchOneInto(Integer.class);
-        } else {
-
-            conditions.add(TRANSFER.TOKEN.isNull());
-
+        if(criteria.getAddress()!=null){
             totalCount = this.dslContext.select(DSL.count())
-                    .from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress()))
+                    .from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress()))
                     .fetchOneInto(Integer.class);
-
         }
+
+//        if (!criteria.isTrx()) {
+//            totalCount = this.dslContext.select(ACCOUNT.TRANSFER_FROM_COUNT)
+//                    .from(ACCOUNT)
+//                    .where(ACCOUNT.ADDRESS.eq(criteria.getAddress()))
+//                    .fetchOneInto(Integer.class);
+//        } else {
+//
+//            conditions.add(TRANSFER.TOKEN.isNull());
+//
+//            totalCount = this.dslContext.select(DSL.count())
+//                    .from(TRANSFER).where(TRANSFER.FROM.eq(criteria.getAddress())).or(TRANSFER.TO.eq(criteria.getAddress()))
+//                    .fetchOneInto(Integer.class);
+//
+//        }
 
         if (totalCount == null) {
             totalCount = 0;
@@ -374,8 +383,8 @@ public class AccountService {
             transferModel.setAmount(InbConvertUtils.AmountConvert(transferModel.getAmount()));
 //            transferModel.setTimestamp(transferModel.getTimestamp().substring(0, transferModel.getTimestamp().indexOf(".")));
             item.add(transferModel);
-
             BlockDTO blockDTO = this.blockService.getBlockById(transferModel.getBlockId());
+            transferModel.setTimestamp(blockDTO.getTimestamp());
             transferModel.setBlockNum(blockDTO.getNum());
         }
 

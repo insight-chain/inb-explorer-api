@@ -41,6 +41,11 @@ public class TransactionModel {
 
 	private List<TransactionLog> log;
 
+	private Long lockHeight;
+
+	private Double mortgage;
+
+
 
 	
 	
@@ -161,4 +166,22 @@ public class TransactionModel {
 	public void setLog(List<TransactionLog> log) {
 		this.log = log;
 	}
+
+	public Long getLockHeight() {
+		return lockHeight;
+	}
+
+	public void setLockHeight(Long lockHeight) {
+		this.lockHeight = lockHeight;
+	}
+
+	public Double getMortgage() {
+		return mortgage;
+	}
+
+	public void setMortgage(Double mortgage) {
+		this.mortgage = mortgage;
+	}
+
+
 }

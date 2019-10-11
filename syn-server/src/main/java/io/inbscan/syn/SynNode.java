@@ -24,11 +24,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import static io.inbscan.model.tables.Node.NODE;
+import static io.inbscan.model.tables.SyncAccount.SYNC_ACCOUNT;
 
 public class SynNode {
 
@@ -50,43 +52,50 @@ public class SynNode {
     public void syncNodes() throws InterruptedException {
 
         JSONArray jsonArray = inbChainService.getCandidateNodesInfo().getJSONArray("result");
-        if(jsonArray != null & jsonArray.size() != 0) {
+        if (jsonArray != null & jsonArray.size() != 0) {
             for (int i = 0; i < jsonArray.size(); i++) {
                 JSONObject nodeObj = JSONArray.parseObject(jsonArray.get(i).toString());
                 JSONObject nodeInfoObj = nodeObj.getJSONObject("NodeInfo");
                 Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(nodeInfoObj.getString("id"))).fetchOneInto(Node.class);
-                if(node==null) {
-                    logger.info("syn node start" + nodeObj.getString("Address"));
-                    this.dslContext.insertInto(NODE)
-                            .set(NODE.HOST, nodeInfoObj.getString("ip"))
-                            .set(NODE.PORT, nodeInfoObj.getString("port"))
-                            .set(NODE.DATE_CREATED, Timestamp.valueOf(LocalDateTime.now()))
-                            .set(NODE.COUNTRY, nodeInfoObj.getString("nation"))
-                            .set(NODE.IMAGE, nodeInfoObj.getString("image"))
-                            .set(NODE.WEB_SITE, nodeInfoObj.getString("website"))
-                            .set(NODE.ADDRESS, nodeInfoObj.getString("address"))
-                            .set(NODE.CITY, nodeInfoObj.getString("city"))
-                            .set(NODE.NAME, nodeInfoObj.getString("name"))
-                            .set(NODE.NODE_ID, nodeInfoObj.getString("id"))
-                            .set(NODE.VOTE_NUMBER, ULong.valueOf(nodeObj.getInteger("Stake")))
-                            .set(NODE.EMAIL, nodeInfoObj.getString("email"))
-                            .set(NODE.TYPE, 2)
-                            .set(NODE.DATA,nodeInfoObj.getString("data"))
-                            .execute();
+                if (node != null) {
+                    this.dslContext.deleteFrom(NODE).where(NODE.NODE_ID.eq(nodeInfoObj.getString("id"))).execute();
                 }
+
+                logger.info("syn node start" + nodeObj.getString("Address"));
+                synAccount(nodeObj.getString("Address"));
+                this.dslContext.insertInto(NODE)
+                        .set(NODE.STAKING_VALUE, nodeObj.getInteger("StakingValue").doubleValue())
+                        .set(NODE.TIME_LIMITED_STAKING_VALUE, nodeObj.getInteger("TimeLimitedStakingValue").doubleValue())
+                        .set(NODE.REWARD_ACCOUNT,nodeInfoObj.getString("rewardAccount"))
+                        .set(NODE.HOST, nodeInfoObj.getString("ip"))
+                        .set(NODE.PORT, nodeInfoObj.getString("port"))
+                        .set(NODE.DATE_CREATED, Timestamp.valueOf(LocalDateTime.now()))
+                        .set(NODE.COUNTRY, nodeInfoObj.getString("nation"))
+                        .set(NODE.IMAGE, nodeInfoObj.getString("image"))
+                        .set(NODE.WEB_SITE, nodeInfoObj.getString("website"))
+                        .set(NODE.ADDRESS, nodeInfoObj.getString("address"))
+                        .set(NODE.CITY, nodeInfoObj.getString("city"))
+                        .set(NODE.NAME, nodeInfoObj.getString("name"))
+                        .set(NODE.NODE_ID, nodeInfoObj.getString("id"))
+                        .set(NODE.VOTE_NUMBER, Double.valueOf(nodeObj.getLong("VotesValue")))
+                        .set(NODE.EMAIL, nodeInfoObj.getString("email"))
+                        .set(NODE.TYPE, 2)
+                        .set(NODE.DATA, nodeInfoObj.getString("extraData"))
+                        .execute();
+
             }
 
             JSONArray json = inbChainService.getSuperNodesInfo().getJSONArray("result");
-            if(json.size()!=0){
+            if (json.size() != 0) {
                 for (int i = 0; i < json.size(); i++) {
                     JSONObject superNodeObj = JSONArray.parseObject(jsonArray.get(i).toString());
                     JSONObject superNodeInfoObj = superNodeObj.getJSONObject("NodeInfo");
                     Node node = this.dslContext.select().from(NODE).where(NODE.NODE_ID.eq(superNodeInfoObj.getString("id"))).fetchOneInto(Node.class);
-                    if(node!=null){
+                    if (node != null) {
                         this.dslContext.update(NODE)
-                            .set(NODE.TYPE, 1)
-                            .where(NODE.ID.eq(node.getId()))
-                            .execute();
+                                .set(NODE.TYPE, 1)
+                                .where(NODE.ID.eq(node.getId()))
+                                .execute();
                     }
                 }
 
@@ -156,6 +165,14 @@ public class SynNode {
 
     }
 
+
+    public void synAccount(String address){
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+        this.dslContext.insertInto(SYNC_ACCOUNT)
+                .set(SYNC_ACCOUNT.ADDRESS,address)
+                .set(SYNC_ACCOUNT.DATE_CREATED, Timestamp.valueOf(format.format(System.currentTimeMillis())))
+                .execute();
+    }
 
 
     public void removeDownNodes() {
