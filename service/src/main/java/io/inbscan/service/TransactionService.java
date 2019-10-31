@@ -498,9 +498,11 @@ public class TransactionService {
 		JSONObject transReceipt = inbChainService.getTransactionReceipt(transHash);
 		String bandwith = "0";
 		String status = "0";
+		double value = 0d;
 		if (transReceipt!=null) {
 			bandwith = transReceipt.getJSONObject("result").getString("resUsed");
 			status = transReceipt.getJSONObject("result").getString("status");
+			value = transReceipt.getJSONObject("result").getInteger("value").doubleValue();
 		}
 
 //		String transInput = InbConvertUtils.fromHexString(transaction.getString("input"));
@@ -511,11 +513,12 @@ public class TransactionService {
 				.set(TRANSACTION.TIMESTAMP, block.getTimestamp())
 				.set(TRANSACTION.FROM, transaction.getString("from"))
 				.set(TRANSACTION.BINDWITH, bandwith)
-				.set(TRANSACTION.TYPE, transactionObject.getJSONObject("result").getInteger("txType"))
+				.set(TRANSACTION.TYPE, Numeric.decodeQuantity(transactionObject.getJSONObject("result").getString("txType")).intValue())
 				.set(TRANSACTION.INPUT, transaction.getString("input"))
 				.set(TRANSACTION.STATUS, status)
 				.set(TRANSACTION.BLOCK_HASH,block.getHash())
 				.set(TRANSACTION.BLOCK_NUM,block.getNum())
+                .set(TRANSACTION.VALUE,value)
 				.set(TRANSACTION.BLOCK_ID, block.getId()).returning()
 				.fetchOne();
 

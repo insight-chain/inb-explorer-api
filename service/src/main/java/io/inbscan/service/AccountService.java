@@ -75,6 +75,9 @@ public class AccountService {
     public void createOrUpdateAccount(String address) {
 
         JSONObject object = inbChainService.getAccountInfo(address);
+        if(object.getJSONObject("result")==null){
+            return;
+        }
         Integer nonce = object.getJSONObject("result").getInteger("Nonce");
         Long mortgageINB = object.getJSONObject("result").getJSONObject("Res").getLong("StakingValue");
         Long mortgageHeight = object.getJSONObject("result").getJSONObject("Res").getLong("Height");
@@ -166,12 +169,13 @@ public class AccountService {
         }
 
         if(storeArray.size()==0){
-            List<StoreDTO> store = this.dslContext.select().from(STORE).where(STORE.ADDRESS.eq(address)).fetchInto(StoreDTO.class);
-            if(store !=null) {
-                for (StoreDTO storeDTO : store) {
-                    this.dslContext.deleteFrom(STORE).where(STORE.ADDRESS.eq(storeDTO.getAddress()));
-                }
-            }
+            this.dslContext.deleteFrom(STORE).where(STORE.ADDRESS.eq(address));
+//            List<StoreDTO> store = this.dslContext.select().from(STORE).where(STORE.ADDRESS.eq(address)).fetchInto(StoreDTO.class);
+//            if(store !=null) {
+//                for (StoreDTO storeDTO : store) {
+//                    this.dslContext.deleteFrom(STORE).where(STORE.ADDRESS.eq(storeDTO.getAddress()));
+//                }
+//            }
         }
 
         //增加代币信息

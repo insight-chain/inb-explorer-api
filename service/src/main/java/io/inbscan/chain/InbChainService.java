@@ -102,7 +102,7 @@ public class InbChainService {
         List<Object> params = new ArrayList<>();
         params.add(blockHash);
         params.add(true);
-        JSONObject object = getResult(params, "eth_getBlockByHash");
+        JSONObject object = getResult(params, "inb_getBlockByHash");
         return object;
     }
 
@@ -127,6 +127,18 @@ public class InbChainService {
         List<Object> params = new ArrayList<>();
         JSONObject object = getResult(params, "inb_confirmedBlockNumber");
         BigInteger result = Numeric.decodeQuantity(object.getString("result"));
+        return result;
+    }
+
+    /**
+     * 获取流通量
+     *
+     * @return
+     */
+    public String getLiquidity() {
+        List<Object> params = new ArrayList<>();
+        JSONObject object = getResult(params, "inb_getLiquidity");
+        String result = object.getString("result");
         return result;
     }
 
