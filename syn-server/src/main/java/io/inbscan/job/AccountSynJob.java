@@ -26,7 +26,7 @@ public class AccountSynJob {
 		this.config = config;
 	}
 
-	@Scheduled("1000ms")
+	@Scheduled("500ms")
 	public void syncAccount() throws ServiceException {
 
 		if (!this.config.isAccountJobEnabled()) {

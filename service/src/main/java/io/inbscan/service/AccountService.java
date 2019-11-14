@@ -135,8 +135,8 @@ public class AccountService {
                     .set(ACCOUNT.REDEEM, redeemValue.doubleValue())
                     .set(ACCOUNT.VOTE_NUMBER, voteNumber)
                     .set(ACCOUNT.LAST_RECEIVE_VOTE_AWARD_HEIGHT, lastReceiveVoteAwardHeight.longValue())
-                    .set(ACCOUNT.TRANSFER_TO_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.TO.eq(address)))
-                    .set(ACCOUNT.TRANSFER_FROM_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.FROM.eq(address)))
+//                    .set(ACCOUNT.TRANSFER_TO_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.TO.eq(address)))
+//                    .set(ACCOUNT.TRANSFER_FROM_COUNT, DSL.select(DSL.count()).from(TRANSFER).where(TRANSFER.FROM.eq(address)))
                     .where(ACCOUNT.ID.eq(record.getId()))
                     .execute();
         }

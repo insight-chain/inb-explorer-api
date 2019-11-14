@@ -14,13 +14,17 @@ import io.inbscan.dto.node.NodeCriteriaDTO;
 import io.inbscan.exception.ServiceException;
 import io.inbscan.model.tables.records.BlockChainRecord;
 import io.inbscan.model.tables.records.BlockRecord;
+import io.inbscan.model.tables.records.TransactionRecord;
 import io.inbscan.utils.HttpUtil;
 import io.inbscan.utils.InbConvertUtils;
+import jnr.ffi.annotations.In;
 import org.apache.commons.lang3.StringUtils;
 import org.jooq.*;
 import org.jooq.impl.DSL;
 import org.jooq.types.UInteger;
 import org.jooq.types.ULong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
@@ -43,9 +47,12 @@ import java.util.List;
 import static io.inbscan.model.tables.Block.BLOCK;
 import static io.inbscan.model.tables.BlockChain.BLOCK_CHAIN;
 import static io.inbscan.model.tables.Node.NODE;
+import static io.inbscan.model.tables.Transaction.TRANSACTION;
 
 
 public class BlockService {
+
+	private static final Logger logger = LoggerFactory.getLogger(BlockService.class);
 
 	private DSLContext dslContext;
 	private TransactionService txService;
@@ -184,8 +191,23 @@ public class BlockService {
 
 		if(!transactions.isEmpty()){
 			for (int i = 0; i < transactions.size(); i++) {
-				this.txService.saveTransaction(JSONArray.parseObject(transactions.get(i).toString()), record);
+				JSONObject transaction = JSONArray.parseObject(transactions.get(i).toString());
+				this.txService.saveTransaction(transaction, record);
 			}
+			//死锁抛异常了就不会走到这步
+			//验证交易是否完全同步
+//			List<String> transactionRecord = this.dslContext.select(TRANSACTION.HASH).from(TRANSACTION).where(TRANSACTION.BLOCK_HASH.equal(record.getHash())).fetchInto(String.class);
+//			if(transactions.size() > transactionRecord.size()){
+//				logger.error("sync transaction error, some transactions loss");
+//				for (int i = 0; i < transactions.size(); i++) {
+//					JSONObject transaction = JSONArray.parseObject(transactions.get(i).toString());
+//					String transHash = transaction.getString("hash");
+//					if(!transactionRecord.contains(transHash)) {
+//						this.txService.saveTransaction(transaction, record);
+//					}
+//				}
+//			}
+
 		}
 
 	}
