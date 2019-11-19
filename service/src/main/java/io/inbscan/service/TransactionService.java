@@ -47,6 +47,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static io.inbscan.model.tables.Account.ACCOUNT;
 import static io.inbscan.model.tables.Block.BLOCK;
@@ -108,6 +109,12 @@ public class TransactionService {
 		if(result != null) {
 			List<TransactionLog> record = this.dslContext.select()
 					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(result.getHash())).fetchInto(TransactionLog.class);
+
+			if(record!=null) {
+                for (TransactionLog transactionLog : record) {
+                    transactionLog.setAmount(InbConvertUtils.AmountConvert(transactionLog.getAmount()));
+                }
+            }
 			result.setLog(record);
 
 			for (TransactionLog transactionLog : record) {
@@ -139,7 +146,7 @@ public class TransactionService {
 		if (result==null) {
 			TransactionModel transactionModel = new TransactionModel();
 			JSONObject object = inbChainService.getTransactionReceipt(hash);
-			if(object.getJSONObject("result") == null){
+			if(object == null){
 				return new TransactionModel();
 			}
 			String bandwith = "0";
@@ -346,6 +353,11 @@ public class TransactionService {
 			List<TransactionLog> record = this.dslContext.select()
 					.from(TRANSACTION_LOG).where(TRANSACTION_LOG.INLINE_TRANSACTION_HASH.eq(transactionDTO.getHash())).fetchInto(TransactionLog.class);
 
+			if(record!=null) {
+                for (TransactionLog transactionLog : record) {
+                    transactionLog.setAmount(InbConvertUtils.AmountConvert(transactionLog.getAmount()));
+                }
+            }
 			transactionDTO.setTransactionLog(record);
 			transactionDTO.setBindwith(Numeric.decodeQuantity(transactionDTO.getBindwith()).toString());
 			transactionDTO.setInput(InbConvertUtils.fromHexString(transactionDTO.getInput()));
@@ -358,6 +370,26 @@ public class TransactionService {
 
 		return result;
 	}
+
+
+    public AccountMonitor getUserTransferOut(String address, String startTime, String endTime) {
+	    Double totalAmount =0d;
+		int transCount =0;
+	    Double balance = this.dslContext.select(ACCOUNT.BALANCE).from(ACCOUNT).where(ACCOUNT.ADDRESS.equal(address)).fetchOneInto(Double.class);
+
+        List<ULong> transAmounts = this.dslContext.select(TRANSFER.AMOUNT).from(TRANSFER)
+                .where(TRANSFER.FROM.eq(address)).and(TRANSFER.TIMESTAMP.between(Timestamp.valueOf(startTime),Timestamp.valueOf(endTime))).fetchInto(ULong.class);
+
+        for (ULong transAmount : transAmounts) {
+        	transCount++;
+            totalAmount+= transAmount.doubleValue();
+        }
+        AccountMonitor accountMonitor = new AccountMonitor();
+        accountMonitor.setBalance(balance);
+        accountMonitor.setTransAmount(InbConvertUtils.AmountConvert(totalAmount));
+        accountMonitor.setTransCount(transCount);
+        return accountMonitor;
+    }
 
 
 	/**
@@ -487,56 +519,20 @@ public class TransactionService {
 
 
 
-	public void saveTransaction(JSONObject transaction, BlockRecord block) {
+	 public void saveTransaction(JSONObject transaction, BlockRecord block) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 		String transHash = transaction.getString("hash");
 		String transFrom = transaction.getString("from");
 		String transTo = transaction.getString("to");
+
 		logger.info("trans is: " + transHash );
-
-		//交易状态以及交易消耗资源
-		JSONObject transReceipt = inbChainService.getTransactionReceipt(transHash);
-		String bandwith = "0";
-		String status = "0";
-		double value = 0d;
-		if (transReceipt!=null) {
-			bandwith = transReceipt.getJSONObject("result").getString("resUsed");
-			status = transReceipt.getJSONObject("result").getString("status");
-			value = transReceipt.getJSONObject("result").getInteger("value").doubleValue();
-		}
-
-//		String transInput = InbConvertUtils.fromHexString(transaction.getString("input"));
-		JSONObject transactionObject = inbChainService.getTransInfo(transHash);
-
-		TransactionRecord txRecord = this.dslContext.insertInto(TRANSACTION)
-				.set(TRANSACTION.HASH, transHash)
-				.set(TRANSACTION.TIMESTAMP, block.getTimestamp())
-				.set(TRANSACTION.FROM, transaction.getString("from"))
-				.set(TRANSACTION.BINDWITH, bandwith)
-				.set(TRANSACTION.TYPE, Numeric.decodeQuantity(transactionObject.getJSONObject("result").getString("txType")).intValue())
-				.set(TRANSACTION.INPUT, transaction.getString("input"))
-				.set(TRANSACTION.STATUS, status)
-				.set(TRANSACTION.BLOCK_HASH,block.getHash())
-				.set(TRANSACTION.BLOCK_NUM,block.getNum())
-                .set(TRANSACTION.VALUE,value)
-				.set(TRANSACTION.BLOCK_ID, block.getId()).returning()
-				.fetchOne();
-
-		this.dslContext.insertInto(TRANSFER)
-				.set(TRANSFER.FROM, transFrom)
-				.set(TRANSFER.TO, transTo)
-				.set(TRANSFER.AMOUNT, ULong.valueOf(Numeric.decodeQuantity(transaction.getString("value")).longValue()))
-				.set(TRANSFER.TRANSACTION_ID, txRecord.getId())
-				.set(TRANSFER.TIMESTAMP, Timestamp.valueOf(format.format(System.currentTimeMillis())))
-				.execute();
 
 		synAccount(transFrom);
 		if(transTo != null){
 			synAccount(transTo);
 		}
 
-
-//		//当前消耗net
+		//		//当前消耗net
 //		BigInteger currentNetConsume = Numeric.decodeQuantity(bandwith);
 //		Integer netLimit = 0;
 		BlockChainRecord blockChainRecord = this.dslContext.select().from(BLOCK_CHAIN).fetchOneInto(BlockChainRecord.class);
@@ -567,7 +563,52 @@ public class TransactionService {
 					.execute();
 		}
 
+		//交易状态以及交易消耗资源
+		JSONObject transReceipt = inbChainService.getTransactionReceipt(transHash);
+		String bandwith = "0";
+		String status = "0";
+		double value = 0d;
+		if (transReceipt!=null) {
+			bandwith = transReceipt.getJSONObject("result").getString("resUsed");
+			status = transReceipt.getJSONObject("result").getString("status");
+			value = transReceipt.getJSONObject("result").getInteger("value").doubleValue();
+		}
+
+//		String transInput = InbConvertUtils.fromHexString(transaction.getString("input"));
+		JSONObject transactionObject = inbChainService.getTransInfo(transHash);
+
+		TransactionRecord txRecord = this.dslContext.insertInto(TRANSACTION)
+				.set(TRANSACTION.HASH, transHash)
+				.set(TRANSACTION.TIMESTAMP, block.getTimestamp())
+				.set(TRANSACTION.FROM, transaction.getString("from"))
+				.set(TRANSACTION.BINDWITH, bandwith)
+				.set(TRANSACTION.TYPE, Numeric.decodeQuantity(transactionObject.getJSONObject("result").getString("txType")).intValue())
+				.set(TRANSACTION.INPUT, transaction.getString("input"))
+				.set(TRANSACTION.STATUS, status)
+				.set(TRANSACTION.BLOCK_HASH,block.getHash())
+				.set(TRANSACTION.BLOCK_NUM,block.getNum())
+                .set(TRANSACTION.VALUE,value)
+				.set(TRANSACTION.BLOCK_ID, block.getId()).returning()
+				.fetchOne();
+
+        this.saveTransfer(transaction,txRecord.getId());
+
 	}
+
+     public void  saveTransfer(JSONObject transaction,ULong transactionId){
+            String transFrom = transaction.getString("from");
+            String transTo = transaction.getString("to");
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+            this.dslContext.insertInto(TRANSFER)
+                    .set(TRANSFER.FROM, transFrom)
+                    .set(TRANSFER.TO, transTo)
+                    .set(TRANSFER.AMOUNT, ULong.valueOf(Numeric.decodeQuantity(transaction.getString("value")).longValue()))
+                    .set(TRANSFER.TRANSACTION_ID, transactionId)
+                    .set(TRANSFER.TIMESTAMP, Timestamp.valueOf(format.format(System.currentTimeMillis())))
+                    .execute();
+    }
+
+
 	public void synAccount(String address){
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 		this.dslContext.insertInto(SYNC_ACCOUNT)
